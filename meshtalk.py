@@ -15,9 +15,8 @@
 #                                                                            --
 #                                                                            --
 #------------------------------------------------------------------------------
-#  Sept 8, 2021                                                             --
+#  Sept 8, 2021                                                              --
 #   - adding formatting and comments                                         --
-#   - added ability to scroll through recent non-friendly records            --
 #------------------------------------------------------------------------------
 #                                                                            --
 # Credit to other projects:                                                  --
