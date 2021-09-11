@@ -18,6 +18,10 @@
 #  Sept 8, 2021                                                              --
 #   - adding formatting and comments                                         --
 #------------------------------------------------------------------------------
+#  Sept 10, 2021                                                             --
+#   - added Curses based text interface                                      --
+#   - class and function was created for GPSProbe                            --
+#------------------------------------------------------------------------------
 #                                                                            --
 # Credit to other projects:                                                  --
 #  - Intercepting SIGINT and CTL-C in Curses                                 --
@@ -146,8 +150,7 @@ class TextWindow(object):
     #we don't print on the window border
 
     try:
-      
-      
+           
 
       #expand tabs to X spaces, pad the string with space then truncate
       PrintLine = PrintLine.expandtabs(4)
@@ -518,10 +521,7 @@ def onConnection(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect 
 #--------------------------------------
 
 def main(stdscr):
- 
-
   CreateTextWindows()
-
   Window1.ScrollPrint("System initiated",2)
   Window4.ScrollPrint("--MeshTalk 1.0--",2)
 
