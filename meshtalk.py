@@ -24,9 +24,12 @@
 #------------------------------------------------------------------------------
 #                                                                            --
 # Credit to other projects:                                                  --
-#  - Intercepting SIGINT and CTL-C in Curses                                 --
+# 
+#  Intercepting SIGINT and CTL-C in Curses                                   --
 #  - https://gnosis.cx/publish/programming/charming_python_6.html            --
 #                                                                            --
+#  Meshtastic-python                                                         --
+#  - https://github.com/meshtastic/Meshtastic-python                         --
 #------------------------------------------------------------------------------
 
 
@@ -35,9 +38,11 @@
 
 import meshtastic
 import time
+from datetime import datetime
 import traceback
 from pubsub import pub
 import argparse
+import collections
 
 #to help with debugging
 import inspect
@@ -90,6 +95,7 @@ TimeToSleep = args.time
 
 #hide the cursor
 #curses.curs_set(0)
+
 
 global TitleWindow
 global StatusWindow
@@ -144,13 +150,16 @@ class TextWindow(object):
 
 
 
-  def ScrollPrint(self,PrintLine,Color): 
+  def ScrollPrint(self,PrintLine,Color=2,TimeStamp=False): 
     #for now the string is printed in the window and the current row is incremented
     #when the counter reaches the end of the window, we will wrap around to the top
     #we don't print on the window border
 
     try:
            
+      current_time = datetime.now().strftime("%H:%M:%S")
+      if (TimeStamp):
+        PrintLine = current_time + ": " + PrintLine
 
       #expand tabs to X spaces, pad the string with space then truncate
       PrintLine = PrintLine.expandtabs(4)
@@ -197,7 +206,7 @@ class TextWindow(object):
       
 
         
-  def WindowPrint(self,y,x,PrintLine,Color): 
+  def WindowPrint(self,y,x,PrintLine,Color=2): 
     #print at a specific coordinate within the window
     try:
      
@@ -261,6 +270,9 @@ class TextWindow(object):
 
 
 def ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo):
+  Window2.ScrollPrint('ErrorHandler',10,TimeStamp=True)
+  Window4.ScrollPrint('** Just a moment...**',8)
+  time.sleep(5)
   CallingFunction =  inspect.stack()[1][3]
   FinalCleanup(stdscr)
   print("")
@@ -281,7 +293,7 @@ def ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo):
   print("--------------------------------------------------------------")
   print("")
   print("")
-  
+  exit(0)
 
 
 def FinalCleanup(stdscr):
@@ -299,7 +311,6 @@ def FinalCleanup(stdscr):
   
 def CreateTextWindows():
 
-  #global stdscr
   global StatusWindow
   global TitleWindow
   global Window1
@@ -352,7 +363,7 @@ def CreateTextWindows():
   Window3y2 = Window3y1 + Window3Height
 
   #Window4 Coordinates
-  Window4Height = 42
+  Window4Height = 48
   Window4Length = 172
   Window4x1 = 0
   Window4y1 = Window1y2 
@@ -402,7 +413,7 @@ def CreateTextWindows():
     Window3.DisplayTitle("Messages",5)
 
     #We will overwrite the title with page information during a report, so we store the original first
-    Window4.Title = "───────────────────────────────────────────────────────────────────────────────────"
+    Window4.Title = "──Packets──────────────────────────────────────────────────────────────────────────"
     Window4.DisplayTitle("",6)
 
 
@@ -416,9 +427,6 @@ def CreateTextWindows():
 #--------------------------------------
 # Meshtastic functions               --
 #--------------------------------------
-
-
-
 
 def fromStr(valstr):
     """try to parse as int, float or bool (and fallback to a string as last resort)
@@ -448,55 +456,86 @@ def fromStr(valstr):
 
 
 
+def DecodePacket(PacketParent,Packet,Filler,FillerChar):
+  #This is a recursive funtion that will decode a packet (get key/value pairs from a dictionary )
+  #if the value is itself a dictionary, recurse
+  Window2.ScrollPrint("DecodePacket",2,TimeStamp=True)
+  #Filler = ('-' *  len(inspect.stack(0)))
+
+  if (PacketParent.upper() != 'MAINPACKET'):
+    Filler = Filler + FillerChar
+
+  #Print the name/type of the packet
+  Window4.ScrollPrint("",2)
+  Window4.ScrollPrint(  "{}PacketType: {}".format(Filler,PacketParent.upper()),2)
+
+
+  #if the packet is a dictionary, decode it
+  if isinstance(Packet, collections.abc.Mapping):
+    for Key in Packet.keys():
+      Value = Packet.get(Key) 
+
+      #if the value paired with this key is another dictionary, keep digging
+      if isinstance(Value, collections.abc.Mapping):
+        time.sleep(0.25)
+        DecodePacket(Key,Value,Filler,FillerChar)  
+      else:
+        if(Key == 'raw'):
+          Window4.ScrollPrint("{}Raw value not yet suported by DecodePacket function".format(Filler),2)
+        else:
+          Window4.ScrollPrint("  {}{}: {}".format(Filler,Key,Value),2)
+          #Window4.ScrollPrint("{}Key: {}".format(Filler,Key),2)
+          #Window4.ScrollPrint("{}Val: {}".format(Filler,Value),2)
+  else:
+    Window2.ScrollPrint("Warning: Not a packet!",5,TimeStamp=True)
+  
+  #Window4.ScrollPrint("{}END PACKET: {} ".format(Filler,PacketParent.upper()),2)
+  
+  
+
 def onReceive(packet, interface): # called when a packet arrives
-    Window2.ScrollPrint("onReceive",2)
-    
-    Message = ''
-    To      = ''
-    From    = ''
-    Decoded = ''
-    
-    Decoded = packet.get('decoded')
-    To      = packet.get('to')
-    From    = packet.get('from')
-    Message = Decoded.get('text')
-    
-    if (Message):
-      Window3.ScrollPrint("From:{} - {}".format(From,Message),2)
-    
-    for key in packet.keys():
-      Window4.ScrollPrint("{}: {}".format(key,packet[key]),2)
+    Window2.ScrollPrint("onReceive",2,TimeStamp=True)
+    Window4.ScrollPrint("",2)    
+    Window4.ScrollPrint("==Packet Received=======================================",2)
 
+    Decoded  = packet.get('decoded')
+    Message  = Decoded.get('text')
+    To       = Decoded.get('to')
+    From     = Decoded.get('from')
 
-      #Find the message payload
-      if (key == 'decoded'):
-        Newpacket = packet[key]
-        Window4.ScrollPrint("",2)
-        Window4.ScrollPrint("===DECODED==============================================",2)
-        
-        #iterate through the dictionary
-        for Newkey in Newpacket.keys():
-          if Newkey in ("portnum","payload","requestId","user","long_name","short_name","hw_model","macaddr"):
-            Window4.ScrollPrint("{}: {}".format(Newkey,Newpacket[Newkey]),2)
-        
-          if (Newkey == "payload"):
-            #Message = fromStr(Newpacket[Newkey])
-            Message = Newpacket[Newkey]
-            
-            Window4.ScrollPrint("To: {}".format(To),2)
-            Window4.ScrollPrint("From: {}".format(From),2)
-            Window4.ScrollPrint("Message: {}".format(Message),2)
-            
-        Window4.ScrollPrint("========================================================",2)
+    #Even better method, use this recursively to decode all the packets of packets
+    DecodePacket('MainPacket',packet,Filler='',FillerChar='  ')
+
+    if(Message):
+      Window3.ScrollPrint("From: {} - {}".format(From,Message),2,TimeStamp=True)
 
     time.sleep(0.25)
-    Window4.ScrollPrint("",2)
- 
-def onConnection(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
+
+
+
+def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
+    Window2.ScrollPrint('onConnectionEstablished',2,TimeStamp=True)
+    Window1.ScrollPrint('Connected',2,TimeStamp=True)
+
+
     # defaults to broadcast, specify a destination ID if you wish
-    Window4.ScrollPrint("Connection established...",2)
+    
+    #Window1.ScrollPrint("Connected: {}".format(current_time),2)
     #interface.sendText("meshtalk 1.0 activated")
 
+
+def onConnectionLost(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
+    Window2.ScrollPrint('onConnectionLost',2,TimeStamp=True)
+    Window1.ScrollPrint('Disconnected',2,TimeStamp=True)
+
+
+
+
+def SIGINT_handler(signal_received, frame):
+  # Handle any cleanup here
+  FinalCleanup(stdscr)  
+  print('** END OF LINE')
+  exit(0)
 
 
 
@@ -521,46 +560,48 @@ def onConnection(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect 
 #--------------------------------------
 
 def main(stdscr):
-  CreateTextWindows()
-  Window1.ScrollPrint("System initiated",2)
-  Window4.ScrollPrint("--MeshTalk 1.0--",2)
+  try:
 
-  #Instanciate a meshtastic object
-  #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
-  Window4.ScrollPrint("Finding Meshtastic device...",2)
-  interface = meshtastic.SerialInterface()
+    CreateTextWindows()
+    Window1.ScrollPrint("System initiated",2)
+    Window4.ScrollPrint("--MeshTalk 1.0--",2)
 
-
-  #subscribe to connection and receive channels
-  pub.subscribe(onConnection, "meshtastic.connection.established")
+    #Instanciate a meshtastic object
+    #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
+    Window4.ScrollPrint("Finding Meshtastic device...",2)
+    interface = meshtastic.SerialInterface()
 
 
-  #Check for message to be sent
-  if(SendMessage):
-    Window4.ScrollPrint("Sending: " + TheMessage,2)
-    interface.sendText(TheMessage)
-    Window4.ScrollPrint("Message sent",2)
-
-  if(ReceiveMessages):
-    Window4.ScrollPrint("Listening for: {} seconds".format(TimeToSleep),2)
-    Window4.ScrollPrint("Subscribing to interface channels...",2)
-    pub.subscribe(onReceive, "meshtastic.receive")
-    time.sleep(TimeToSleep)
+    #subscribe to connection and receive channels
+    pub.subscribe(onConnectionEstablished, "meshtastic.connection.established")
+    pub.subscribe(onConnectionLost,        "meshtastic.connection.lost")
 
 
-  interface.close()  
-  Window4.ScrollPrint("--End of Line------------",2)
-  Window4.ScrollPrint("",2)
+    #Check for message to be sent
+    if(SendMessage):
+      Window4.ScrollPrint("Sending: " + TheMessage,2)
+      interface.sendText(TheMessage)
+      Window4.ScrollPrint("Message sent",2)
+
+    if(ReceiveMessages):
+      Window4.ScrollPrint("Listening for: {} seconds".format(TimeToSleep),2)
+      Window4.ScrollPrint("Subscribing to interface channels...",2)
+      pub.subscribe(onReceive, "meshtastic.receive")
+      time.sleep(TimeToSleep)
+
+
+    interface.close()  
+    Window4.ScrollPrint("--End of Line------------",2)
+    Window4.ScrollPrint("",2)
+
+  except Exception as ErrorMessage:
+    TraceMessage = traceback.format_exc()
+    AdditionalInfo = "Main function "
+    ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
 
 
 
 
-
-def handler(signal_received, frame):
-  # Handle any cleanup here
-  FinalCleanup(stdscr)  
-  print('** END OF LINE')
-  exit(0)
 
 
 #--------------------------------------
@@ -570,8 +611,8 @@ def handler(signal_received, frame):
 #only execute if we are in main
 if __name__=='__main__':
   try:
-      #if SIGINT or CTL-C detected, run handler to exit gracefully
-      signal(SIGINT, handler)
+      #if SIGINT or CTL-C detected, run SIGINT_handler to exit gracefully
+      signal(SIGINT, SIGINT_handler)
 
       # Initialize curses
       stdscr=curses.initscr()
@@ -587,15 +628,11 @@ if __name__=='__main__':
       stdscr.keypad(1)
       main(stdscr)                    # Enter the main loop
       # Set everything back to normal
-      stdscr.keypad(0)
-      curses.echo()
-      curses.nocbreak()
-      curses.endwin()                 # Terminate curses
-  except:
+      FinalCleanup(stdscr)
+
+  except Exception as ErrorMessage:
       # In event of error, restore terminal to sane state.
-      stdscr.keypad(0)
-      curses.echo()
-      curses.nocbreak()
-      curses.endwin()
-      traceback.print_exc()           # Print the exception
+      TraceMessage = traceback.format_exc()
+      AdditionalInfo = "Main pre-amble"
+      ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
 
