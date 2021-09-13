@@ -22,6 +22,9 @@
 #   - added Curses based text interface                                      --
 #   - class and function was created for GPSProbe                            --
 #------------------------------------------------------------------------------
+#  Sept 10, 2021                                                             --
+#   - added recursive function to decode packets of packets                  --
+#------------------------------------------------------------------------------
 #                                                                            --
 # Credit to other projects:                                                  --
 # 
@@ -103,6 +106,7 @@ global Window1
 global Window2
 global Window3
 global Window4
+global Pad1
 global IPAddress
 
 
@@ -150,7 +154,7 @@ class TextWindow(object):
 
 
 
-  def ScrollPrint(self,PrintLine,Color=2,TimeStamp=False): 
+  def ScrollPrint(self,PrintLine,Color=2,TimeStamp=False,WrapText=True): 
     #for now the string is printed in the window and the current row is incremented
     #when the counter reaches the end of the window, we will wrap around to the top
     #we don't print on the window border
@@ -188,11 +192,13 @@ class TextWindow(object):
       self.CurrentRow        = self.CurrentRow + 1
 
         
+     
       if (self.CurrentRow > (self.DisplayRows)):
         if (self.ShowBorder == 'Y'):
           self.CurrentRow = 1
         else:
           self.CurrentRow = 0
+     
         
       
       #erase to end of line
@@ -269,10 +275,121 @@ class TextWindow(object):
 
 
 
+
+
+
+
+class TextPad(object):
+  def __init__(self,name, rows,columns,y1,x1,y2,x2,ShowBorder,BorderColor):
+    self.name              = name
+    self.rows              = rows
+    self.columns           = columns
+    self.y1                = y1 #These are coordinates for the window corners on the screen
+    self.x1                = x1 #These are coordinates for the window corners on the screen
+    self.y2                = y2 #These are coordinates for the window corners on the screen
+    self.x2                = x2 #These are coordinates for the window corners on the screen
+    self.ShowBorder        = ShowBorder
+    self.BorderColor       = BorderColor #pre defined text colors 1-7
+    self.TextPad           = curses.newpad(self.rows,self.columns)
+    self.CurrentRow        = y1
+    self.StartColumn       = x1
+    self.DisplayRows       = self.rows    #we will modify this later, based on if we show borders or not
+    self.DisplayColumns    = self.columns #we will modify this later, based on if we show borders or not
+    self.PreviousLineText  = ""
+    self.PreviousLineRow   = 0
+    self.PreviousLineColor = 2
+    self.Title             = ""
+    self.TitleColor        = 2
+
+    #If we are showing border, we only print inside the lines
+    if (self.ShowBorder  == 'Y'):
+      self.CurrentRow     = 1
+      self.StartColumn    = 1
+      self.DisplayRows    = self.rows -2 #we don't want to print over the border
+      self.DisplayColumns = self.columns -2 #we don't want to print over the border
+      #self.TextPad.attron(curses.color_pair(BorderColor))
+      #self.TextPad.border()
+      #self.TextPad.attroff(curses.color_pair(BorderColor))
+      #yx upper left of pad, yx upper left of window(of the pad), yx lower right corner of window
+      #self.TextPad.refresh(y1,x1,y1,x1,y2,x2)
+
+    else:
+      self.CurrentRow   = 0
+      self.StartColumn  = 0
+
+
+         
+  def PadPrint(self,PrintLine,Color=2): 
+    #print to the pad
+    try:
+      self.TextPad.idlok(1)
+      self.TextPad.scrollok(1)
+      
+      #expand tabs to X spaces, pad the string with space then truncate
+      PrintLine = PrintLine.expandtabs(4)
+      PrintLine = PrintLine.ljust(self.columns,' ')
+      
+      self.TextPad.attron(curses.color_pair(Color))
+      self.TextPad.addstr(PrintLine)
+      self.TextPad.attroff(curses.color_pair(Color))
+
+      #We will refresh afer a series of calls instead of every update
+      self.TextPad.refresh(0,0,self.y1,self.x1,self.y2,self.x2)
+
+    except Exception as ErrorMessage:
+      TraceMessage = traceback.format_exc()
+      AdditionalInfo = "PrintLine: " + PrintLine
+      ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
+        
+      
+
+
+  def DisplayTitle(self,Title, Color): 
+    #display the window title 
+    if(Title == ""):
+      Title = self.Title
+    try:
+      #expand tabs to X spaces, pad the string with space then truncate
+      Title = Title[0:self.DisplayColumns-3]
+
+      self.TextPad.attron(curses.color_pair(Color))
+      if (self.rows > 2):
+        #print new line in bold        
+        self.TextPad.addstr(0,2,Title)
+        self.TextPad.refresh()
+
+      else:
+        print ("ERROR - You cannot display title on a window smaller than 3 rows")
+
+    except Exception as ErrorMessage:
+      TraceMessage = traceback.format_exc()
+      AdditionalInfo = "Title: " + Title
+      ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
+
+
+  def Clear(self):
+    self.TextPad.clear()
+    self.TextPad.attron(curses.color_pair(self.BorderColor))
+    self.TextPad.border()
+    self.TextPad.attroff(curses.color_pair(self.BorderColor))
+    self.DisplayTitle(self.Title,self.TitleColor)
+    self.TextPad.refresh()
+    if (self.ShowBorder  == 'Y'):
+      self.CurrentRow    = 1
+      self.StartColumn   = 1
+    else:
+      self.CurrentRow   = 0
+      self.StartColumn  = 0
+
+
+
+
+
+
 def ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo):
   Window2.ScrollPrint('ErrorHandler',10,TimeStamp=True)
   Window4.ScrollPrint('** Just a moment...**',8)
-  time.sleep(5)
+  time.sleep(1)
   CallingFunction =  inspect.stack()[1][3]
   FinalCleanup(stdscr)
   print("")
@@ -306,7 +423,7 @@ def FinalCleanup(stdscr):
 
 
 #--------------------------------------
-# Initialize Text window / curses    --
+# Initialize Text window / pads      --
 #--------------------------------------
   
 def CreateTextWindows():
@@ -317,7 +434,7 @@ def CreateTextWindows():
   global Window2
   global Window3
   global Window4
-  
+  global Pad1
 
 
   #Colors are numbered, and start_color() initializes 8 
@@ -345,6 +462,7 @@ def CreateTextWindows():
   Window1y1 = 1
   Window1x2 = Window1x1 + Window1Length
   Window1y2 = Window1y1 + Window1Height
+  
 
   #Window2 Coordinates
   Window2Height = 12
@@ -356,7 +474,7 @@ def CreateTextWindows():
 
   #Window3 Coordinates
   Window3Height = 12
-  Window3Length = 90
+  Window3Length = 40
   Window3x1 = Window2x2 + 1
   Window3y1 = 1
   Window3x2 = Window3x1 + Window3Length
@@ -364,16 +482,22 @@ def CreateTextWindows():
 
   #Window4 Coordinates
   Window4Height = 48
-  Window4Length = 172
+  Window4Length = Window1Length + Window2Length + Window3Length
   Window4x1 = 0
   Window4y1 = Window1y2 
   Window4x2 = Window4x1 + Window4Length
   Window4y2 = Window4y1 + Window4Height
 
+  #Pad1 Coordinates
+  Pad1Columns = 40
+  Pad1Lines   = 40
+  Pad1x1 = Window3x2 + 1
+  Pad1y1 = 1
+  Pad1x2 = Pad1x1 + Pad1Columns
+  Pad1y2 = Pad1y1 + Pad1Lines
 
 
   try:
-
 
     #stdscr.clear()
     curses.init_pair(1, curses.COLOR_RED, curses.COLOR_BLACK)
@@ -398,8 +522,12 @@ def CreateTextWindows():
     Window2       = TextWindow('Window2',Window2Height,Window2Length,Window2y1,Window2x1,Window2y2,Window2x2,'Y',3)
     Window3       = TextWindow('Window3',Window3Height,Window3Length,Window3y1,Window3x1,Window3y2,Window3x2,'Y',4)
     Window4       = TextWindow('Window4',Window4Height,Window4Length,Window4y1,Window4x1,Window4y2,Window4x2,'Y',6)
-   
-  
+    Pad1          = TextPad('Pad1', Pad1Lines,Pad1Columns,Pad1y1,Pad1x1,Pad1y2,Pad1x2,'N',6)
+                           # name,  rows,      columns,   y1,    x1,    y2,    x2,ShowBorder,BorderColor):
+
+
+    
+
     # Display the title  
     TitleWindow.ScrollPrint("──MeshTalk 2021──",2)
     #StatusWindow.ScrollPrint("Preparing devices",6)
@@ -416,6 +544,8 @@ def CreateTextWindows():
     Window4.Title = "──Packets──────────────────────────────────────────────────────────────────────────"
     Window4.DisplayTitle("",6)
 
+
+    
 
 
   except Exception as ErrorMessage:
@@ -469,11 +599,14 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar):
   Window4.ScrollPrint("",2)
   Window4.ScrollPrint(  "{}PacketType: {}".format(Filler,PacketParent.upper()),2)
 
+  
 
   #if the packet is a dictionary, decode it
   if isinstance(Packet, collections.abc.Mapping):
     for Key in Packet.keys():
       Value = Packet.get(Key) 
+
+      Pad1.PadPrint("Analyzing: {} - {}".format(PacketParent,Key),2)
 
       #if the value paired with this key is another dictionary, keep digging
       if isinstance(Value, collections.abc.Mapping):
@@ -508,6 +641,14 @@ def onReceive(packet, interface): # called when a packet arrives
 
     if(Message):
       Window3.ScrollPrint("From: {} - {}".format(From,Message),2,TimeStamp=True)
+
+    #example of scrolling the window
+    #Window4.TextWindow.idlok(1)
+    #Window4.TextWindow.scrollok(1)
+    #Window4.TextWindow.scroll(10)
+    #Window4.TextWindow.scrollok(0)
+    
+    
 
     time.sleep(0.25)
 
@@ -565,6 +706,8 @@ def main(stdscr):
     CreateTextWindows()
     Window1.ScrollPrint("System initiated",2)
     Window4.ScrollPrint("--MeshTalk 1.0--",2)
+
+
 
     #Instanciate a meshtastic object
     #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
