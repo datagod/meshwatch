@@ -296,12 +296,16 @@ class TextPad(object):
     self.TextPad           = curses.newpad(self.rows,self.columns)
     self.PreviousLineColor = 2
          
-  def PadPrint(self,PrintLine,Color=2): 
+  def PadPrint(self,PrintLine,Color=2,TimeStamp=False): 
     #print to the pad
     try:
       self.TextPad.idlok(1)
       self.TextPad.scrollok(1)
-      
+
+      current_time = datetime.now().strftime("%H:%M:%S")
+      if (TimeStamp):
+        PrintLine = current_time + ": " + PrintLine
+
       #expand tabs to X spaces, pad the string with space then truncate
       PrintLine = PrintLine.expandtabs(4)
       PrintLine = PrintLine.ljust(self.columns,'.')
@@ -572,7 +576,7 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar):
     for Key in Packet.keys():
       Value = Packet.get(Key) 
 
-      Pad1.PadPrint("Analyzing: {} - {}".format(PacketParent,Key),2)
+      Pad1.PadPrint("{} - {}".format(PacketParent,Key),2,TimeStamp=True)
 
       #if the value paired with this key is another dictionary, keep digging
       if isinstance(Value, collections.abc.Mapping):
