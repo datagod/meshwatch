@@ -280,6 +280,9 @@ class TextWindow(object):
 
 
 class TextPad(object):
+  #use this as a virtual notepad
+  #write a large amount of data to it, then display a section of it on the screen
+  #to have a border, use another window with a border
   def __init__(self,name, rows,columns,y1,x1,y2,x2,ShowBorder,BorderColor):
     self.name              = name
     self.rows              = rows
@@ -291,33 +294,7 @@ class TextPad(object):
     self.ShowBorder        = ShowBorder
     self.BorderColor       = BorderColor #pre defined text colors 1-7
     self.TextPad           = curses.newpad(self.rows,self.columns)
-    self.CurrentRow        = y1
-    self.StartColumn       = x1
-    self.DisplayRows       = self.rows    #we will modify this later, based on if we show borders or not
-    self.DisplayColumns    = self.columns #we will modify this later, based on if we show borders or not
-    self.PreviousLineText  = ""
-    self.PreviousLineRow   = 0
     self.PreviousLineColor = 2
-    self.Title             = ""
-    self.TitleColor        = 2
-
-    #If we are showing border, we only print inside the lines
-    if (self.ShowBorder  == 'Y'):
-      self.CurrentRow     = 1
-      self.StartColumn    = 1
-      self.DisplayRows    = self.rows -2 #we don't want to print over the border
-      self.DisplayColumns = self.columns -2 #we don't want to print over the border
-      #self.TextPad.attron(curses.color_pair(BorderColor))
-      #self.TextPad.border()
-      #self.TextPad.attroff(curses.color_pair(BorderColor))
-      #yx upper left of pad, yx upper left of window(of the pad), yx lower right corner of window
-      #self.TextPad.refresh(y1,x1,y1,x1,y2,x2)
-
-    else:
-      self.CurrentRow   = 0
-      self.StartColumn  = 0
-
-
          
   def PadPrint(self,PrintLine,Color=2): 
     #print to the pad
@@ -327,7 +304,7 @@ class TextPad(object):
       
       #expand tabs to X spaces, pad the string with space then truncate
       PrintLine = PrintLine.expandtabs(4)
-      PrintLine = PrintLine.ljust(self.columns,' ')
+      PrintLine = PrintLine.ljust(self.columns,'.')
       
       self.TextPad.attron(curses.color_pair(Color))
       self.TextPad.addstr(PrintLine)
@@ -341,31 +318,6 @@ class TextPad(object):
       AdditionalInfo = "PrintLine: " + PrintLine
       ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
         
-      
-
-
-  def DisplayTitle(self,Title, Color): 
-    #display the window title 
-    if(Title == ""):
-      Title = self.Title
-    try:
-      #expand tabs to X spaces, pad the string with space then truncate
-      Title = Title[0:self.DisplayColumns-3]
-
-      self.TextPad.attron(curses.color_pair(Color))
-      if (self.rows > 2):
-        #print new line in bold        
-        self.TextPad.addstr(0,2,Title)
-        self.TextPad.refresh()
-
-      else:
-        print ("ERROR - You cannot display title on a window smaller than 3 rows")
-
-    except Exception as ErrorMessage:
-      TraceMessage = traceback.format_exc()
-      AdditionalInfo = "Title: " + Title
-      ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
-
 
   def Clear(self):
     self.TextPad.clear()
@@ -373,7 +325,7 @@ class TextPad(object):
     self.TextPad.border()
     self.TextPad.attroff(curses.color_pair(self.BorderColor))
     self.DisplayTitle(self.Title,self.TitleColor)
-    self.TextPad.refresh()
+    self.TextPad.refresh(0,0,self.y1,self.x1,self.y2,self.x2)
     if (self.ShowBorder  == 'Y'):
       self.CurrentRow    = 1
       self.StartColumn   = 1
@@ -474,7 +426,7 @@ def CreateTextWindows():
 
   #Window3 Coordinates
   Window3Height = 12
-  Window3Length = 40
+  Window3Length = 60
   Window3x1 = Window2x2 + 1
   Window3y1 = 1
   Window3x2 = Window3x1 + Window3Length
@@ -482,20 +434,32 @@ def CreateTextWindows():
 
   #Window4 Coordinates
   Window4Height = 48
-  Window4Length = Window1Length + Window2Length + Window3Length
+  Window4Length = Window1Length + Window2Length + Window3Length + 2
   Window4x1 = 0
   Window4y1 = Window1y2 
   Window4x2 = Window4x1 + Window4Length
   Window4y2 = Window4y1 + Window4Height
 
-  #Pad1 Coordinates
-  Pad1Columns = 40
-  Pad1Lines   = 40
-  Pad1x1 = Window3x2 + 1
-  Pad1y1 = 1
-  Pad1x2 = Pad1x1 + Pad1Columns
-  Pad1y2 = Pad1y1 + Pad1Lines
 
+ #We are going to put a window here as a border, but have the pad 
+ #displayed inside
+ #Window5 Coordinates
+  Window5Height = 60
+  Window5Length = 60
+  Window5y1 = 1
+  Window5x1 = Window3x2 + 1
+  Window5x2 = Window5x1 + Window5Length
+  Window5y2 = Window5y1 + Window5Height
+  
+  # Coordinates
+  Pad1Columns = Window5Length -2
+  Pad1Lines   = Window5Height -2
+  Pad1x1 = Window5x1+1
+  Pad1y1 = Window5y1+1
+  Pad1x2 = Window5x2 -1
+  Pad1y2 = Window5y2 -1
+
+  
 
   try:
 
@@ -522,7 +486,8 @@ def CreateTextWindows():
     Window2       = TextWindow('Window2',Window2Height,Window2Length,Window2y1,Window2x1,Window2y2,Window2x2,'Y',3)
     Window3       = TextWindow('Window3',Window3Height,Window3Length,Window3y1,Window3x1,Window3y2,Window3x2,'Y',4)
     Window4       = TextWindow('Window4',Window4Height,Window4Length,Window4y1,Window4x1,Window4y2,Window4x2,'Y',6)
-    Pad1          = TextPad('Pad1', Pad1Lines,Pad1Columns,Pad1y1,Pad1x1,Pad1y2,Pad1x2,'N',6)
+    Window5       = TextWindow('Window5',Window5Height,Window5Length,Window5y1,Window5x1,Window5y2,Window5x2,'Y',5)
+    Pad1          = TextPad('Pad1', Pad1Lines,Pad1Columns,Pad1y1,Pad1x1,Pad1y2,Pad1x2,'N',5)
                            # name,  rows,      columns,   y1,    x1,    y2,    x2,ShowBorder,BorderColor):
 
 
@@ -543,7 +508,8 @@ def CreateTextWindows():
     #We will overwrite the title with page information during a report, so we store the original first
     Window4.Title = "──Packets──────────────────────────────────────────────────────────────────────────"
     Window4.DisplayTitle("",6)
-
+    Window5.DisplayTitle("Packet Keys",6)
+    
 
     
 
@@ -597,7 +563,7 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar):
 
   #Print the name/type of the packet
   Window4.ScrollPrint("",2)
-  Window4.ScrollPrint(  "{}PacketType: {}".format(Filler,PacketParent.upper()),2)
+  Window4.ScrollPrint(  "{}{}".format(Filler,PacketParent.upper()),2)
 
   
 
