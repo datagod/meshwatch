@@ -20,17 +20,29 @@ The top row has basic information messages from the system, a debug area that sh
 ![Decoded Packets](https://github.com/datagod/meshtalk/blob/main/pics/Meshtalk%20packet.jpg?raw=true "Packet values")
 Each packet that is intercepted will be displayed here in, decoded.  Some fields such as RAW are not supported yet.  This type of window is using a wrap around function to display the new lines.
 
-# Just the keys
+## Just the keys
 ![Just the Keys](https://github.com/datagod/meshtalk/blob/main/pics/meshtalk%20packet%20keys.jpg?raw=true "Packet keys")
 
 I wanted to see just a list of the keys for each received package so I list them here.  This is a curses pad, which will keep scrolling as new data arrives.
 
+
+# Installing
+
+![Just the Keys](https://github.com/datagod/meshtalk/blob/main/pics/MeshtalkInstall.jpg?raw=true "Packet keys")
+
+
+
+
 # Usage
 MeshTalk has two modes.
 To receive packets and decode them in a fancy text based display, use the following command:
+
 ![How to run](https://github.com/datagod/meshtalk/blob/main/pics/MeshtalkUsage1.jpg?raw=true "Usage")
 
 To send a message: 
+
 ![How to run](https://github.com/datagod/meshtalk/blob/main/pics/MeshtalkSendMessage.jpg?raw=true "Usage")
+
+
 
 
