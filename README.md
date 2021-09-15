@@ -8,5 +8,15 @@ My progress can be followed here:  https://datagod.hashnode.dev/series/meshtalk-
 # Built with Curses
 This project uses Curses to draw text windows and pads to keep the different types of information separated.  You can use a screen directly connected to the pi or use an SSH session.  I have used Kitty in my tests.  If you Kitty screen is not large enough you will recieve strange display errors.
 
-# Windows and Pads
+# Screen Layout
+The screen has 5 areas of scrolling text.
+
+![Top Row](https://github.com/datagod/meshtalk/blob/main/pics/Meshtalk%20messages.jpg?raw=true "Top Row")
+
+
+![Decoded Packets](https://github.com/datagod/meshtalk/blob/main/pics/Meshtalk%20packet.jpg.jpg?raw=true "Packet values")
+
+
+![Just the Keys](https://github.com/datagod/meshtalk/blob/main/pics/meshtalk%20packet%20keys.jpg?raw=true "Packet keys")
+
 
