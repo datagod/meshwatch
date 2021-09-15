@@ -177,12 +177,27 @@ class TextWindow(object):
         self.TextWindow.addstr(0,0,PrintLine)
       else:
 
+
+        #A_NORMAL        Normal display (no highlight)
+        #A_STANDOUT      Best highlighting mode of the terminal
+        #A_UNDERLINE     Underlining
+        #A_REVERSE       Reverse video
+        #A_BLINK         Blinking
+        #A_DIM           Half bright
+        #A_BOLD          Extra bright or bold
+        #A_PROTECT       Protected mode
+        #A_INVIS         Invisible or blank mode
+        #A_ALTCHARSET    Alternate character set
+        #A_CHARTEXT      Bit-mask to extract a character
+        #COLOR_PAIR(n)   Color-pair number n
+
         #unbold current line  (bold seems to stick, so I am changing)
         self.TextWindow.attron(curses.color_pair(self.PreviousLineColor))
         self.TextWindow.addstr(self.PreviousLineRow,self.StartColumn,self.PreviousLineText)
         #print new line in bold        
-        self.TextWindow.addstr(self.CurrentRow,self.StartColumn,PrintLine,curses.A_BOLD)
-      self.TextWindow.attroff(curses.color_pair(Color))
+        #self.TextWindow.addstr(self.CurrentRow,self.StartColumn,PrintLine,curses.A_BOLD)
+        self.TextWindow.addstr(self.CurrentRow,self.StartColumn,PrintLine,curses.A_STANDOUT)
+        self.TextWindow.attroff(curses.color_pair(Color))
 
 
 
@@ -411,7 +426,10 @@ def CreateTextWindows():
   c = str(stdscr.getch())
 
 
-  #Window1 Coordinates
+  #NOTE: When making changes, be very careful.  Each Window's position is relative to the other ones on the same 
+  #horizontal level.  Change one setting at a time and see how it looks on your screen
+
+  #Window1 Coordinates (info window)
   Window1Height = 12
   Window1Length = 40
   Window1x1 = 0
@@ -420,7 +438,7 @@ def CreateTextWindows():
   Window1y2 = Window1y1 + Window1Height
   
 
-  #Window2 Coordinates
+  #Window2 Coordinates (small debug window)
   Window2Height = 12
   Window2Length = 40
   Window2x1 = Window1x2 + 1
@@ -428,17 +446,18 @@ def CreateTextWindows():
   Window2x2 = Window2x1 + Window2Length
   Window2y2 = Window2y1 + Window2Height
 
-  #Window3 Coordinates
+  #Window3 Coordinates (Messages)
   Window3Height = 12
-  Window3Length = 60
+  Window3Length = 100
   Window3x1 = Window2x2 + 1
   Window3y1 = 1
   Window3x2 = Window3x1 + Window3Length
   Window3y2 = Window3y1 + Window3Height
 
-  #Window4 Coordinates
-  Window4Height = 48
-  Window4Length = Window1Length + Window2Length + Window3Length + 2
+  #Window4 Coordinates (packet data)
+  Window4Height = 40
+  #Window4Length = Window1Length + Window2Length + Window3Length + 2
+  Window4Length = 115
   Window4x1 = 0
   Window4y1 = Window1y2 
   Window4x2 = Window4x1 + Window4Length
@@ -447,21 +466,42 @@ def CreateTextWindows():
 
  #We are going to put a window here as a border, but have the pad 
  #displayed inside
- #Window5 Coordinates
-  Window5Height = 60
-  Window5Length = 60
-  Window5y1 = 1
-  Window5x1 = Window3x2 + 1
+ #Window5 Coordinates (to the right of window4)
+  Window5Height = 40
+  Window5Length = 50
+  Window5x1 = Window4x2 + 1
+  Window5y1 = Window4y1
   Window5x2 = Window5x1 + Window5Length
   Window5y2 = Window5y1 + Window5Height
   
-  # Coordinates
+  # Coordinates (scrolling pad/window for showing keys being decoded)
   Pad1Columns = Window5Length -2
   Pad1Lines   = Window5Height -2
   Pad1x1 = Window5x1+1
   Pad1y1 = Window5y1+1
   Pad1x2 = Window5x2 -1
   Pad1y2 = Window5y2 -1
+
+
+
+ #old layout
+ #We are going to put a window here as a border, but have the pad 
+ #displayed inside
+ #Window5 Coordinates
+#  Window5Height = 60
+#  Window5Length = 50
+#  Window5y1 = 1
+#  Window5x1 = Window3x2 + 1
+#  Window5x2 = Window5x1 + Window5Length
+#  Window5y2 = Window5y1 + Window5Height
+  
+  # Coordinates (scrolling pad/window for showing keys being decoded)
+#  Pad1Columns = Window5Length -2
+#  Pad1Lines   = Window5Height -2
+#  Pad1x1 = Window5x1+1
+#  Pad1y1 = Window5y1+1
+#  Pad1x2 = Window5x2 -1
+#  Pad1y2 = Window5y2 -1
 
   
 
@@ -556,7 +596,7 @@ def fromStr(valstr):
 
 
 
-def DecodePacket(PacketParent,Packet,Filler,FillerChar):
+def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   #This is a recursive funtion that will decode a packet (get key/value pairs from a dictionary )
   #if the value is itself a dictionary, recurse
   Window2.ScrollPrint("DecodePacket",2,TimeStamp=True)
@@ -568,7 +608,10 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar):
   #Print the name/type of the packet
   Window4.ScrollPrint("",2)
   Window4.ScrollPrint(  "{}{}".format(Filler,PacketParent.upper()),2)
-
+  
+  #adjust the input to slow down the output for that cool retro feel
+  if (PrintSleep):
+    time.sleep(PrintSleep)
   
 
   #if the packet is a dictionary, decode it
@@ -599,18 +642,19 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar):
 def onReceive(packet, interface): # called when a packet arrives
     Window2.ScrollPrint("onReceive",2,TimeStamp=True)
     Window4.ScrollPrint("",2)    
-    Window4.ScrollPrint("==Packet Received=======================================",2)
+    Window4.ScrollPrint("==Packet RECEIVED=======================================",2)
 
     Decoded  = packet.get('decoded')
     Message  = Decoded.get('text')
-    To       = Decoded.get('to')
-    From     = Decoded.get('from')
+    To       = packet.get('to')
+    From     = packet.get('from')
 
     #Even better method, use this recursively to decode all the packets of packets
-    DecodePacket('MainPacket',packet,Filler='',FillerChar='  ')
+    DecodePacket('MainPacket',packet,Filler='',FillerChar='  ',PrintSleep=0.3)
 
     if(Message):
       Window3.ScrollPrint("From: {} - {}".format(From,Message),2,TimeStamp=True)
+    Window4.ScrollPrint("=======================================================",2)
 
     #example of scrolling the window
     #Window4.TextWindow.idlok(1)
@@ -627,18 +671,51 @@ def onReceive(packet, interface): # called when a packet arrives
 def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
     Window2.ScrollPrint('onConnectionEstablished',2,TimeStamp=True)
     Window1.ScrollPrint('Connected',2,TimeStamp=True)
-
-
-    # defaults to broadcast, specify a destination ID if you wish
     
-    #Window1.ScrollPrint("Connected: {}".format(current_time),2)
-    #interface.sendText("meshtalk 1.0 activated")
+    From = "BaseStation"
+    To   = "All"
+    current_time = datetime.now().strftime("%H:%M:%S")
+    Message = "MeshTalk active [{}]".format(current_time)
+    Window3.ScrollPrint("From: {} - {}".format(From,Message,To),2,TimeStamp=True)
+    
+    try:
+      interface.sendText(Message)
+      Window4.ScrollPrint("",2)    
+      Window4.ScrollPrint("==Packet SENT===========================================",3)
+      Window4.ScrollPrint("To:     {}:".format(To),3)
+      Window4.ScrollPrint("From    {}:".format(From),3)
+      Window4.ScrollPrint("Message {}:".format(Message),3)
+      Window4.ScrollPrint("========================================================",3)
+    
+    except Exception as ErrorMessage:
+      TraceMessage = traceback.format_exc()
+      AdditionalInfo = "Sending text message ({})".format(Message)
+      ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
+
 
 
 def onConnectionLost(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
     Window2.ScrollPrint('onConnectionLost',2,TimeStamp=True)
     Window1.ScrollPrint('Disconnected',2,TimeStamp=True)
 
+
+def onNodeUpdated(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
+    Window2.ScrollPrint('onNodeUpdated',2,TimeStamp=True)
+    Window1.ScrollPrint('Update received',2,TimeStamp=True)
+
+    Window4.ScrollPrint("",2)    
+    Window4.ScrollPrint("==NODE UPDATED =======================================",4)
+
+    try:
+      DecodePacket('Node',packet,Filler='',FillerChar='  ')
+
+    except Exception as ErrorMessage:
+      TraceMessage = traceback.format_exc()
+      AdditionalInfo = "Decoding onNodeUpdated packet"
+      ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
+
+
+    Window4.ScrollPrint("=======================================================",4)
 
 
 
@@ -678,6 +755,8 @@ def main(stdscr):
     Window4.ScrollPrint("--MeshTalk 1.0--",2)
 
 
+    
+
 
     #Instanciate a meshtastic object
     #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
@@ -688,6 +767,7 @@ def main(stdscr):
     #subscribe to connection and receive channels
     pub.subscribe(onConnectionEstablished, "meshtastic.connection.established")
     pub.subscribe(onConnectionLost,        "meshtastic.connection.lost")
+    pub.subscribe(onNodeUpdated,           "meshtastic.node.updated")
 
 
     #Check for message to be sent
