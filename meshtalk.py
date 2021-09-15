@@ -197,7 +197,7 @@ class TextWindow(object):
         #print new line in bold        
         #self.TextWindow.addstr(self.CurrentRow,self.StartColumn,PrintLine,curses.A_BOLD)
         self.TextWindow.addstr(self.CurrentRow,self.StartColumn,PrintLine,curses.A_STANDOUT)
-      self.TextWindow.attroff(curses.color_pair(Color))
+        self.TextWindow.attroff(curses.color_pair(Color))
 
 
 
@@ -448,14 +448,14 @@ def CreateTextWindows():
 
   #Window3 Coordinates (Messages)
   Window3Height = 12
-  Window3Length = 120
+  Window3Length = 100
   Window3x1 = Window2x2 + 1
   Window3y1 = 1
   Window3x2 = Window3x1 + Window3Length
   Window3y2 = Window3y1 + Window3Height
 
   #Window4 Coordinates (packet data)
-  Window4Height = 48
+  Window4Height = 40
   #Window4Length = Window1Length + Window2Length + Window3Length + 2
   Window4Length = 115
   Window4x1 = 0
@@ -467,7 +467,7 @@ def CreateTextWindows():
  #We are going to put a window here as a border, but have the pad 
  #displayed inside
  #Window5 Coordinates (to the right of window4)
-  Window5Height = 48
+  Window5Height = 40
   Window5Length = 50
   Window5x1 = Window4x2 + 1
   Window5y1 = Window4y1
