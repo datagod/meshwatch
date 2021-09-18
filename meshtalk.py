@@ -46,6 +46,8 @@ import traceback
 from pubsub import pub
 import argparse
 import collections
+import sys
+import os
 
 #to help with debugging
 import inspect
@@ -69,9 +71,12 @@ DEBUG = False
 
 parser = argparse.ArgumentParser(description=DESCRIPTION)
 parser.add_argument('-s', '--send',    type=str,   nargs='?', help="send a text message")
-parser.add_argument('-r', '--receive', action='store_true',   help="recieve and display messages")
-parser.add_argument('-t', '--time',    type=float, nargs='?', help="seconds to listen before exiting",default = 60)
+parser.add_argument('-t', '--time',    type=int, nargs='?', help="seconds to listen before exiting",default = 36000)
 args = parser.parse_args()
+
+#This will now be the default behaviour
+#parser.add_argument('-r', '--receive', action='store_true',   help="recieve and display messages")
+
 
 
 #process arguments and assign values to local variables
@@ -81,10 +86,10 @@ if(args.send):
 else:
   SendMessage = False
 
-if(args.receive):
-  ReceiveMessages = True
-else:
-  ReceiveMessages = False
+#if(args.receive):
+#  ReceiveMessages = True
+#else:
+#  ReceiveMessages = False
 
 TimeToSleep = args.time
 
@@ -106,9 +111,10 @@ global Window1
 global Window2
 global Window3
 global Window4
+global Window5
 global Pad1
 global IPAddress
-
+global Interface
 
 #------------------------------------------------------------------------------
 # Functions / Classes                                                        --
@@ -154,68 +160,99 @@ class TextWindow(object):
 
 
 
-  def ScrollPrint(self,PrintLine,Color=2,TimeStamp=False,WrapText=True): 
+  def ScrollPrint(self,PrintLine,Color=2,TimeStamp=False,BoldLine=True): 
+    #print(PrintLine)
     #for now the string is printed in the window and the current row is incremented
     #when the counter reaches the end of the window, we will wrap around to the top
     #we don't print on the window border
+    #make sure to pad the new string with spaces to overwrite any old text
+
+    current_time = datetime.now().strftime("%H:%M:%S")
+
+    if (TimeStamp):
+      PrintLine = current_time + ": " + PrintLine
+
+    #expand tabs to X spaces, pad the string with space
+    PrintLine = PrintLine.expandtabs(4)
+    
+    #adjust strings
+    #Get a part of the big string that will fit in the window
+    PrintableString = ''
+    RemainingString = ''
+    PrintableString = PrintLine[0:self.columns-2]
+    RemainingString = PrintLine[self.columns-2:]
+  
+    #Pad1.PadPrint("PrintLine:{}".format(PrintLine),2,TimeStamp=True)
+    #Pad1.PadPrint("Printable:{}".format(PrintableString),2,TimeStamp=True)
+    #Pad1.PadPrint("Remaining:{}".format(RemainingString),2,TimeStamp=True)
+
+   
 
     try:
-           
-      current_time = datetime.now().strftime("%H:%M:%S")
-      if (TimeStamp):
-        PrintLine = current_time + ": " + PrintLine
+      
+      while (len(PrintableString) > 0):
+        
+        #padd with spaces
+        PrintableString = PrintableString.ljust(self.columns-2)
 
-      #expand tabs to X spaces, pad the string with space then truncate
-      PrintLine = PrintLine.expandtabs(4)
-      PrintLine = PrintLine.ljust(self.DisplayColumns -1,' ')
-      PrintLine = PrintLine[0:self.DisplayColumns]
+        #if (self.rows == 1):
+        #  #if you print on the last character of a window you get an error
+        #  PrintableString = PrintableString[0:-2]
+        #  self.TextWindow.addstr(0,0,PrintableString)
+        #else:
 
-      self.TextWindow.attron(curses.color_pair(Color))
-      if (self.rows == 1):
-        #if you print on the last character of a window you get an error
-        PrintLine = PrintLine[0:self.DisplayColumns-1]
-        self.TextWindow.addstr(0,0,PrintLine)
-      else:
-
-
-        #A_NORMAL        Normal display (no highlight)
-        #A_STANDOUT      Best highlighting mode of the terminal
-        #A_UNDERLINE     Underlining
-        #A_REVERSE       Reverse video
-        #A_BLINK         Blinking
-        #A_DIM           Half bright
-        #A_BOLD          Extra bright or bold
-        #A_PROTECT       Protected mode
-        #A_INVIS         Invisible or blank mode
-        #A_ALTCHARSET    Alternate character set
-        #A_CHARTEXT      Bit-mask to extract a character
-        #COLOR_PAIR(n)   Color-pair number n
-
-        #unbold current line  (bold seems to stick, so I am changing)
+                
+        #unbold Previous line  
         self.TextWindow.attron(curses.color_pair(self.PreviousLineColor))
         self.TextWindow.addstr(self.PreviousLineRow,self.StartColumn,self.PreviousLineText)
-        #print new line in bold        
-        #self.TextWindow.addstr(self.CurrentRow,self.StartColumn,PrintLine,curses.A_BOLD)
-        self.TextWindow.addstr(self.CurrentRow,self.StartColumn,PrintLine,curses.A_STANDOUT)
-        self.TextWindow.attroff(curses.color_pair(Color))
+        self.TextWindow.attroff(curses.color_pair(self.PreviousLineColor))
 
 
+        if (BoldLine == True):
+          #A_NORMAL        Normal display (no highlight)
+          #A_STANDOUT      Best highlighting mode of the terminal
+          #A_UNDERLINE     Underlining
+          #A_REVERSE       Reverse video
+          #A_BLINK         Blinking
+          #A_DIM           Half bright
+          #A_BOLD          Extra bright or bold
+          #A_PROTECT       Protected mode
+          #A_INVIS         Invisible or blank mode
+          #A_ALTCHARSET    Alternate character set
+          #A_CHARTEXT      Bit-mask to extract a character
+          #COLOR_PAIR(n)   Color-pair number n
 
-      self.PreviousLineText  = PrintLine
-      self.PreviousLineColor = Color
-      self.PreviousLineRow   = self.CurrentRow
-      self.CurrentRow        = self.CurrentRow + 1
+          #print new line in bold        
+          self.TextWindow.attron(curses.color_pair(Color))
+          self.TextWindow.addstr(self.CurrentRow,self.StartColumn,PrintableString,curses.A_BOLD)
+          self.TextWindow.attroff(curses.color_pair(Color))
+        else:
+          #print new line in Regular
+          self.TextWindow.attron(curses.color_pair(Color))
+          self.TextWindow.addstr(self.CurrentRow,self.StartColumn,PrintableString)
+          self.TextWindow.attroff(curses.color_pair(Color))
+
+        self.PreviousLineText  = PrintableString
+        self.PreviousLineColor = Color
+        self.PreviousLineRow   = self.CurrentRow
+        self.CurrentRow        = self.CurrentRow + 1
+
+
+        #Adjust strings
+        PrintableString = RemainingString[0:self.columns-2]
+        RemainingString = RemainingString[self.columns-2:]
+
 
         
-     
       if (self.CurrentRow > (self.DisplayRows)):
         if (self.ShowBorder == 'Y'):
           self.CurrentRow = 1
         else:
           self.CurrentRow = 0
-     
+    
         
-      
+
+
       #erase to end of line
       #self.TextWindow.clrtoeol()
       self.TextWindow.refresh()
@@ -381,8 +418,7 @@ def ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo):
   print("--------------------------------------------------------------")
   print("")
   print("")
-  exit(0)
-
+  sys.exit('Good by for now...')
 
 def FinalCleanup(stdscr):
   stdscr.keypad(0)
@@ -390,6 +426,7 @@ def FinalCleanup(stdscr):
   curses.nocbreak()
   curses.curs_set(1)
   curses.endwin()
+  
 
 
 
@@ -405,6 +442,7 @@ def CreateTextWindows():
   global Window2
   global Window3
   global Window4
+  global Window5
   global Pad1
 
 
@@ -686,7 +724,8 @@ def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (
       Window4.ScrollPrint("From    {}:".format(From),3)
       Window4.ScrollPrint("Message {}:".format(Message),3)
       Window4.ScrollPrint("========================================================",3)
-    
+      Window4.ScrollPrint("",2)    
+
     except Exception as ErrorMessage:
       TraceMessage = traceback.format_exc()
       AdditionalInfo = "Sending text message ({})".format(Message)
@@ -727,6 +766,140 @@ def SIGINT_handler(signal_received, frame):
 
 
 
+def PollKeyboard():
+  global stdscr
+  global Window2
+  global interface
+
+  ReturnChar = ""
+  c = ""
+  #curses.filter()
+  curses.noecho()
+ 
+  try:
+    c = chr(stdscr.getch())
+  except Exception as ErrorMessage:
+    c=""
+
+
+  #Look for digits (ascii 48-57 == digits 0-9)
+  if (c >= '0' and c <= '9'):
+    #print ("Digit detected")
+    #StatusWindow.ScrollPrint("Digit Detected",2)
+    ReturnChar = (c)    
+
+  if (c != ""):
+    #print ("----------------")
+    #print ("Key Pressed: ",Key)
+    #print ("----------------")
+    OutputLine = "Key Pressed: " + c
+    #Window2.ScrollPrint(OutputLine,4)
+    ProcessKeypress(c)
+  return ReturnChar
+
+
+
+def ProcessKeypress(Key):
+  global stdscr
+  global StatusWindow
+  global Window2
+  global Window4
+  global interface
+  count  = 0
+
+  OutputLine = "** KEYPRESS: " + str(Key) + " **"
+  Window2.ScrollPrint (OutputLine,5)
+  # p = pause
+  # q = quit
+  # r = reboot
+  # s = Send message
+
+    
+  if (Key == "p" or Key == " "):
+    PauseOutput = not (PauseOutput)
+    if (PauseOutput == True):
+      Window2.ScrollPrint("Pausing output",2)
+      StatusWindow.ScrollPrint("** Output Paused - press SPACE to resume **",3)
+    else:
+      Window2.ScrollPrint("Resuming output",2)
+      StatusWindow.ScrollPrint("",2)
+
+  #elif (Key == "i"):
+  #  IPAddress = ShowIPAddress()
+  #  ar.ShowScrollingBanner2(IPAddress,0,225,0,3,0.03)
+
+  elif (Key == "q"):
+    FinalCleanup(stdscr)
+    exit()
+
+  elif (Key == "c"):
+      Window1.Clear()
+      Window2.Clear()
+      Window3.Clear()
+      Window4.Clear()
+      Window5.Clear()
+
+      Window2.DisplayTitle(Window2.Title,3)
+      Window4.DisplayTitle(Window4.Title,6)
+      Window2.ScrollPrint("Clear screen",2)
+
+  elif (Key == "r"):
+    Window2.ScrollPrint('** REBOOTING **',1)
+    
+    FinalCleanup(stdscr)
+    os.execl(sys.executable, sys.executable, *sys.argv)
+
+  elif (Key == "s"):
+    SendMessagePacket(interface)
+
+
+
+
+def SendMessagePacket(interface, Message=''):
+
+    stdscr.addstr(38, 4, "Enter message: (hit Ctrl-G to send)")
+
+    # height, length, upper left coordinates (y,x)
+    editwin = curses.newwin(5,30, 40,5)
+    
+    #draw a box around the editwindow
+    #Upper left corner coordinates, lower right coordinate
+    rectangle(stdscr, 39, 4, 45, 35)
+    stdscr.refresh()
+
+    box = Textbox(editwin)
+
+    # Let the user edit until Ctrl-G is struck.
+    box.edit()
+
+    # Get resulting contents
+    TheMessage = box.gather()
+  
+    interface.sendText(TheMessage)
+
+    Window4.ScrollPrint("",2)    
+    Window4.ScrollPrint("==Packet SENT===========================================",3)
+    Window4.ScrollPrint("To:     All:",3)
+    Window4.ScrollPrint("From    BaseStation:",3)
+    Window4.ScrollPrint("Message {}:".format(TheMessage),3)
+    Window4.ScrollPrint("========================================================",3)
+    Window4.ScrollPrint("",2)    
+
+
+
+    Window3.ScrollPrint("To: All - {}".format(TheMessage),2,TimeStamp=True)
+
+
+def GoToSleep(TimeToSleep):
+  
+  for i in range (0,TimeToSleep):
+    #Check for keyboard input      --
+    Key = PollKeyboard()
+    if (Key == 's'):
+      SendMessagePacket
+      return
+    time.sleep(1)
+
 #------------------------------------------------------------------------------
 #   __  __    _    ___ _   _                                                 --
 #  |  \/  |  / \  |_ _| \ | |                                                --
@@ -748,20 +921,19 @@ def SIGINT_handler(signal_received, frame):
 #--------------------------------------
 
 def main(stdscr):
+  global interface
   try:
 
     CreateTextWindows()
-    Window1.ScrollPrint("System initiated",2)
-    Window4.ScrollPrint("--MeshTalk 1.0--",2)
-
-
+    Window4.ScrollPrint("System initiated",2)
     
-
-
+    
     #Instanciate a meshtastic object
     #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
     Window4.ScrollPrint("Finding Meshtastic device...",2)
     interface = meshtastic.SerialInterface()
+
+
 
 
     #subscribe to connection and receive channels
@@ -770,22 +942,28 @@ def main(stdscr):
     pub.subscribe(onNodeUpdated,           "meshtastic.node.updated")
 
 
-    #Check for message to be sent
+    #Check for message to be sent (command line option)
     if(SendMessage):
-      Window4.ScrollPrint("Sending: " + TheMessage,2)
-      interface.sendText(TheMessage)
-      Window4.ScrollPrint("Message sent",2)
+       interface.sendText(TheMessage)
 
-    if(ReceiveMessages):
-      Window4.ScrollPrint("Listening for: {} seconds".format(TimeToSleep),2)
-      Window4.ScrollPrint("Subscribing to interface channels...",2)
-      pub.subscribe(onReceive, "meshtastic.receive")
-      time.sleep(TimeToSleep)
+   
+
+    #Go into listening mode
+    Window4.ScrollPrint("Listening for: {} seconds".format(TimeToSleep),2)
+    Window4.ScrollPrint("Subscribing to interface channels...",2)
+    pub.subscribe(onReceive, "meshtastic.receive")
+
+
+    while (1==1):
+      GoToSleep(2)
 
 
     interface.close()  
     Window4.ScrollPrint("--End of Line------------",2)
     Window4.ScrollPrint("",2)
+    
+
+
 
   except Exception as ErrorMessage:
     TraceMessage = traceback.format_exc()
