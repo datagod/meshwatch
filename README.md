@@ -1,4 +1,4 @@
-![TheDevice](https://github.com/datagod/meshtalk/blob/main/pics/Meshtastic device%20raspberry%20pi.jpg?raw=true "Top Row")
+![TheDevice](https://github.com/datagod/meshtalk/blob/main/pics/Meshtastic%20device%20raspberry%20pi.jpg?raw=true "Top Row")
 
 
 # MeshTalk
