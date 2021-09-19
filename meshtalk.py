@@ -183,8 +183,8 @@ class TextWindow(object):
     #Get a part of the big string that will fit in the window
     PrintableString = ''
     RemainingString = ''
-    PrintableString = PrintLine[0:self.columns-2]
-    RemainingString = PrintLine[self.columns-2:]
+    PrintableString = PrintLine[0:self.DisplayColumns-2]
+    RemainingString = PrintLine[self.DisplayColumns:]
   
     #Pad1.PadPrint("PrintLine:{}".format(PrintLine),2,TimeStamp=True)
     #Pad1.PadPrint("Printable:{}".format(PrintableString),2,TimeStamp=True)
@@ -197,7 +197,7 @@ class TextWindow(object):
       while (len(PrintableString) > 0):
         
         #padd with spaces
-        PrintableString = PrintableString.ljust(self.columns-2)
+        PrintableString = PrintableString.ljust(self.DisplayColumns)
 
         #if (self.rows == 1):
         #  #if you print on the last character of a window you get an error
@@ -243,8 +243,8 @@ class TextWindow(object):
 
 
         #Adjust strings
-        PrintableString = RemainingString[0:self.columns-2]
-        RemainingString = RemainingString[self.columns-2:]
+        PrintableString = RemainingString[0:self.DisplayColumns]
+        RemainingString = RemainingString[self.DisplayColumns:]
 
 
         
@@ -263,7 +263,8 @@ class TextWindow(object):
 
     except Exception as ErrorMessage:
       TraceMessage = traceback.format_exc()
-      AdditionalInfo = "PrintLine: " + PrintLine 
+      AdditionalInfo = "\nPrintLine:       [" + PrintLine +"]\n" + "PrintableString: [" + PrintableString + "]\n"
+
       ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
       
 
@@ -415,7 +416,7 @@ class TextPad(object):
 def ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo):
   Window2.ScrollPrint('ErrorHandler',10,TimeStamp=True)
   Window4.ScrollPrint('** Just a moment...**',8)
-  time.sleep(2)
+  time.sleep(1)
   CallingFunction =  inspect.stack()[1][3]
   FinalCleanup(stdscr)
   print("")
@@ -594,14 +595,17 @@ def CreateTextWindows():
     
 
     # Display the title  
-    TitleWindow.ScrollPrint("──MeshTalk 2021──",2)
+    #TitleWindow.ScrollPrint("──MeshTalk 2021──",2)
     #StatusWindow.ScrollPrint("Preparing devices",6)
     #Window1.ScrollPrint("Channel Info",2)
     #Window2.ScrollPrint("Debug Info",2)
     #Window3.ScrollPrint("Alerts",2)
     #Window4.ScrollPrint("Details",2)
     
-    
+    #each title needs to be initialized or you get errors in scrollprint
+    TitleWindow.Title,   TitleWindow.TitleColor   = "",2
+    StatusWindow.Title,  StatusWindow.TitleColor  = "",2
+    StatusWindow2.Title, StatusWindow2.TitleColor = "",2
     Window1.Title, Window1.TitleColor = "Info",2
     Window2.Title, Window2.TitleColor = "Debug",3
     Window3.Title, Window3.TitleColor = "Messages",4
@@ -698,7 +702,7 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
           Window4.ScrollPrint("{}Raw value not yet suported by DecodePacket function".format(Filler),2)
         elif(Key == 'shortName'):
           Window4.ScrollPrint("{}SHORT NAME FOUND".format(Filler),3)
-          UpdateDeviceWindow(NewDeviceName=Key,Color=2)
+          UpdateStatusWindow(NewDeviceName=Key,Color=2)
           DeviceName = Key
 
         
@@ -913,9 +917,9 @@ def SendMessagePacket(interface, Message=''):
     Window4.Clear()
     Window4.ScrollPrint(" ",2)    
     Window4.ScrollPrint("==Packet SENT===========================================",3)
-    Window4.ScrollPrint("To:     All:",3)
-    Window4.ScrollPrint("From    BaseStation:",3)
-    Window4.ScrollPrint("Message {}:".format(TheMessage),3)
+    Window4.ScrollPrint("To:      All:",3)
+    Window4.ScrollPrint("From:    BaseStation",3)
+    Window4.ScrollPrint("Message: {}".format(TheMessage),3)
     Window4.ScrollPrint("========================================================",3)
     Window4.ScrollPrint(" ",2)    
 
@@ -976,6 +980,7 @@ def main(stdscr):
 
   try:
 
+    DeviceName      = '??'
     DeviceStatus    = '??'
     PacketsReceived = 0
     PacketsSent     = 0
@@ -1035,12 +1040,13 @@ def UpdateStatusWindow(NewDeviceStatus="",
   global DeviceStatus
   global DeviceName
 
+
   x1,y1 = 1,1    #DeviceName
-  x2,y2 = 2,1    #DeviceStatus
-  x3,y3 = 3,1    
-  x4,y4 = 4,1
-  x5,y5 = 5,1
-  x6,y6 = 6,1
+  x2,y2 = 1,2    #DeviceStatus
+  x3,y3 = 1,3    
+  x4,y4 = 1,4
+  x5,y5 = 1,5
+  x6,y6 = 1,6
 
 
   if(NewDeviceName != ""):
@@ -1050,7 +1056,7 @@ def UpdateStatusWindow(NewDeviceStatus="",
     DeviceStatus = NewDeviceStatus
 
   #DeviceName
-  Window1.WindowPrint(y1,x1,"Name:   " + DeviceName,2)
+  Window1.WindowPrint(y1,x1,"Name:   ",2)
   Window1.WindowPrint(y1,x1+8,DeviceName,Color)
 
   #DeviceStatus
