@@ -735,8 +735,6 @@ def onReceive(packet, interface): # called when a packet arrives
     global PacketsSent
 
     PacketsReceived = PacketsReceived + 1
-    UpdateStatusWindow(PacetsReceived=PacketsReceived,Color=2)
-
     
 
     Window2.ScrollPrint("onReceive",2,TimeStamp=True)
@@ -962,10 +960,6 @@ def GoToSleep(TimeToSleep):
     time.sleep(1)
 
 def ClearAllWindows():
-  Window2.ScrollPrint("Title:{}".format(Window1.Title),2)
-  Window2.ScrollPrint("Title:{}".format(Window2.Title),2)
-  Window2.ScrollPrint("Title:{}".format(Window3.Title),2)
-  Window2.ScrollPrint("Title:{}".format(Window4.Title),2)
   time.sleep(2)
   Window1.Clear()
   Window2.Clear()
@@ -1074,7 +1068,7 @@ def UpdateStatusWindow(NewDeviceStatus= "",
   x1,y1 = 1,1    #DeviceName
   x2,y2 = 1,2    #DeviceStatus
   x3,y3 = 1,3    #DevicePort
-  x4,y4 = 1,4
+  x4,y4 = 1,4    #PacketsReceived
   x5,y5 = 1,5
   x6,y6 = 1,6
 
@@ -1088,6 +1082,7 @@ def UpdateStatusWindow(NewDeviceStatus= "",
   if(NewDevicePort != ""):
     DevicePort = NewDevicePort
 
+  
   #DeviceName
   Window1.WindowPrint(y1,x1,"Name:   ",2)
   Window1.WindowPrint(y1,x1+8,DeviceName,Color)
@@ -1100,6 +1095,9 @@ def UpdateStatusWindow(NewDeviceStatus= "",
   Window1.WindowPrint(y3,x3,"Port:   " + DevicePort,2)
   Window1.WindowPrint(y3,x3+8,DevicePort,Color)
 
+  #PacketsReceived
+  Window1.WindowPrint(y4,x4,"Packets Received: {}".format(PacketsReceived),2)
+  Window1.WindowPrint(y3,x3+16,DevicePort,Color)
 
 
   
