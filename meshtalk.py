@@ -115,15 +115,16 @@ global Window5
 global Pad1
 global IPAddress
 global Interface
-global PacketsReceived
-global PacketsSent
 global DeviceStatus
 global DeviceName
+global DevicePort
+global PacketsReceived
+global PacketsSent
+
 
 #------------------------------------------------------------------------------
 # Functions / Classes                                                        --
 #------------------------------------------------------------------------------
-
 
 class TextWindow(object):
   def __init__(self,name, rows,columns,y1,x1,y2,x2,ShowBorder,BorderColor,TitleColor):
@@ -183,8 +184,8 @@ class TextWindow(object):
     #Get a part of the big string that will fit in the window
     PrintableString = ''
     RemainingString = ''
-    PrintableString = PrintLine[0:self.DisplayColumns-2]
-    RemainingString = PrintLine[self.DisplayColumns:]
+    PrintableString = PrintLine[0:self.DisplayColumns]
+    RemainingString = PrintLine[self.DisplayColumns+1:]
   
     #Pad1.PadPrint("PrintLine:{}".format(PrintLine),2,TimeStamp=True)
     #Pad1.PadPrint("Printable:{}".format(PrintableString),2,TimeStamp=True)
@@ -197,7 +198,7 @@ class TextWindow(object):
       while (len(PrintableString) > 0):
         
         #padd with spaces
-        PrintableString = PrintableString.ljust(self.DisplayColumns)
+        PrintableString = PrintableString.ljust(self.DisplayColumns,' ')
 
         #if (self.rows == 1):
         #  #if you print on the last character of a window you get an error
@@ -606,7 +607,7 @@ def CreateTextWindows():
     TitleWindow.Title,   TitleWindow.TitleColor   = "",2
     StatusWindow.Title,  StatusWindow.TitleColor  = "",2
     StatusWindow2.Title, StatusWindow2.TitleColor = "",2
-    Window1.Title, Window1.TitleColor = "Info",2
+    Window1.Title, Window1.TitleColor = "Device Info",2
     Window2.Title, Window2.TitleColor = "Debug",3
     Window3.Title, Window3.TitleColor = "Messages",4
     Window4.Title, Window4.TitleColor = "Packets",5
@@ -667,6 +668,11 @@ def fromStr(valstr):
 def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   global DeviceStatus
   global DeviceName
+  global DevicePort
+  global PacketsReceived
+  global PacketsSent
+
+
 
   #This is a recursive funtion that will decode a packet (get key/value pairs from a dictionary )
   #if the value is itself a dictionary, recurse
@@ -697,14 +703,20 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
         time.sleep(0.25)
         DecodePacket(Key,Value,Filler,FillerChar)  
       else:
+
         #check for special keys
         if(Key == 'raw'):
           Window4.ScrollPrint("{}Raw value not yet suported by DecodePacket function".format(Filler),2)
+
         elif(Key == 'shortName'):
           Window4.ScrollPrint("{}SHORT NAME FOUND".format(Filler),3)
-          UpdateStatusWindow(NewDeviceName=Key,Color=2)
-          DeviceName = Key
+          UpdateStatusWindow(NewDeviceName=Value,Color=2)
+          DeviceName = Value
 
+        elif(Key == 'portnum'):
+          Window4.ScrollPrint("{}PORT FOUND".format(Filler),3)
+          UpdateStatusWindow(NewDevicePort=Value,Color=2)
+          DevicePort = Value
         
           
         else:
@@ -719,9 +731,17 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   
 
 def onReceive(packet, interface): # called when a packet arrives
+    global PacketsReceived
+    global PacketsSent
+
+    PacketsReceived = PacketsReceived + 1
+    UpdateStatusWindow(PacetsReceived=PacketsReceived,Color=2)
+
+    
+
     Window2.ScrollPrint("onReceive",2,TimeStamp=True)
     Window4.ScrollPrint(" ",2)    
-    Window4.ScrollPrint("==Packet RECEIVED=======================================",2)
+    Window4.ScrollPrint("==Packet RECEIVED=================================================",2)
 
     Decoded  = packet.get('decoded')
     Message  = Decoded.get('text')
@@ -733,7 +753,7 @@ def onReceive(packet, interface): # called when a packet arrives
 
     if(Message):
       Window3.ScrollPrint("From: {} - {}".format(From,Message),2,TimeStamp=True)
-    Window4.ScrollPrint("=======================================================",2)
+    Window4.ScrollPrint("=================================================================",2)
 
     #example of scrolling the window
     #Window4.TextWindow.idlok(1)
@@ -761,11 +781,11 @@ def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (
     try:
       interface.sendText(Message)
       Window4.ScrollPrint("",2)    
-      Window4.ScrollPrint("==Packet SENT===========================================",3)
+      Window4.ScrollPrint("==Packet SENT=====================================================",3)
       Window4.ScrollPrint("To:     {}:".format(To),3)
       Window4.ScrollPrint("From    {}:".format(From),3)
       Window4.ScrollPrint("Message {}:".format(Message),3)
-      Window4.ScrollPrint("========================================================",3)
+      Window4.ScrollPrint("==================================================================",3)
       Window4.ScrollPrint("",2)    
 
     except Exception as ErrorMessage:
@@ -911,6 +931,9 @@ def SendMessagePacket(interface, Message=''):
 
     # Get resulting contents
     TheMessage = box.gather()
+    
+    #remove last character which seems to be interfering with line printing
+    TheMessage = TheMessage[0:-1]
   
     interface.sendText(TheMessage)
 
@@ -977,11 +1000,15 @@ def main(stdscr):
   global interface
   global DeviceStatus
   global DeviceName
+  global DevicePort
+  global PacketsSent
+  global PacketsReceived
 
   try:
 
     DeviceName      = '??'
     DeviceStatus    = '??'
+    DevicePort      = '??'
     PacketsReceived = 0
     PacketsSent     = 0
 
@@ -1031,19 +1058,22 @@ def main(stdscr):
 
 
 
-def UpdateStatusWindow(NewDeviceStatus="",
-                       NewDeviceName="",
+def UpdateStatusWindow(NewDeviceStatus= "",
+                       NewDeviceName  = "",
+                       NewDevicePort  = "",
                        Color=2
     ):
   #Window2.ScrollPrint("UpdateStatusWindow",2,TimeStamp=True)
 
   global DeviceStatus
   global DeviceName
-
+  global DevicePort
+  global PacketsReceived
+  global PacketsSent
 
   x1,y1 = 1,1    #DeviceName
   x2,y2 = 1,2    #DeviceStatus
-  x3,y3 = 1,3    
+  x3,y3 = 1,3    #DevicePort
   x4,y4 = 1,4
   x5,y5 = 1,5
   x6,y6 = 1,6
@@ -1055,6 +1085,9 @@ def UpdateStatusWindow(NewDeviceStatus="",
   if(NewDeviceStatus != ""):
     DeviceStatus = NewDeviceStatus
 
+  if(NewDevicePort != ""):
+    DevicePort = NewDevicePort
+
   #DeviceName
   Window1.WindowPrint(y1,x1,"Name:   ",2)
   Window1.WindowPrint(y1,x1+8,DeviceName,Color)
@@ -1063,6 +1096,9 @@ def UpdateStatusWindow(NewDeviceStatus="",
   Window1.WindowPrint(y2,x2,"Status: " + DeviceStatus,2)
   Window1.WindowPrint(y2,x2+8,DeviceStatus,Color)
 
+  #DeviceStatus
+  Window1.WindowPrint(y3,x3,"Port:   " + DevicePort,2)
+  Window1.WindowPrint(y3,x3+8,DevicePort,Color)
 
 
 
