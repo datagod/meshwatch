@@ -1,3 +1,6 @@
+![TheDevice](https://github.com/datagod/meshtalk/blob/main/pics/Meshtastic%20device%20raspberry%20pi.jpg?raw=true "Top Row")
+
+
 # MeshTalk
 MeshTalk is a python3 program that will allow you to send and receive messages from python. The messages are decoded and displayed in a text based interface created with Curses.
 
