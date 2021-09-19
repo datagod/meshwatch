@@ -115,6 +115,10 @@ global Window5
 global Pad1
 global IPAddress
 global Interface
+global PacketsReceived
+global PacketsSent
+global DeviceStatus
+global DeviceName
 
 #------------------------------------------------------------------------------
 # Functions / Classes                                                        --
@@ -122,7 +126,7 @@ global Interface
 
 
 class TextWindow(object):
-  def __init__(self,name, rows,columns,y1,x1,y2,x2,ShowBorder,BorderColor):
+  def __init__(self,name, rows,columns,y1,x1,y2,x2,ShowBorder,BorderColor,TitleColor):
     self.name              = name
     self.rows              = rows
     self.columns           = columns
@@ -141,7 +145,7 @@ class TextWindow(object):
     self.PreviousLineRow   = 0
     self.PreviousLineColor = 2
     self.Title             = ""
-    self.TitleColor        = 2
+    self.TitleColor        = TitleColor
 
     #If we are showing border, we only print inside the lines
     if (self.ShowBorder  == 'Y'):
@@ -270,15 +274,17 @@ class TextWindow(object):
      
       #expand tabs to X spaces, pad the string with space then truncate
       PrintLine = PrintLine.expandtabs(4)
-      PrintLine = PrintLine.ljust(self.DisplayColumns -1,' ')
-      PrintLine = PrintLine[0:self.DisplayColumns]
+      
+      #pad the print line with spaces then truncate at the display length
+      PrintLine = PrintLine.ljust(self.DisplayColumns)
+      PrintLine = PrintLine[0:self.DisplayColumns -x]
 
       self.TextWindow.attron(curses.color_pair(Color))
       self.TextWindow.addstr(y,x,PrintLine)
       self.TextWindow.attroff(curses.color_pair(Color))
 
-      #We will refresh afer a series of calls instead of every update
-      #self.TextWindow.refresh()
+      
+      self.TextWindow.refresh()
 
     except Exception as ErrorMessage:
       TraceMessage = traceback.format_exc()
@@ -288,22 +294,30 @@ class TextWindow(object):
       
 
 
-  def DisplayTitle(self,Title, Color): 
+  def DisplayTitle(self): 
     #display the window title 
-    if(Title == ""):
-      Title = self.Title
+
+    Color = 0
+    Title = ''
+
+       
+  
     try:
       #expand tabs to X spaces, pad the string with space then truncate
-      Title = Title[0:self.DisplayColumns-3]
+      Title = self.Title[0:self.DisplayColumns-3]
 
-      self.TextWindow.attron(curses.color_pair(Color))
+      self.TextWindow.attron(curses.color_pair(self.TitleColor))
       if (self.rows > 2):
         #print new line in bold        
         self.TextWindow.addstr(0,2,Title)
-        self.TextWindow.refresh()
+
 
       else:
         print ("ERROR - You cannot display title on a window smaller than 3 rows")
+
+      self.TextWindow.attroff(curses.color_pair(self.TitleColor))
+      self.TextWindow.refresh()    
+
 
     except Exception as ErrorMessage:
       TraceMessage = traceback.format_exc()
@@ -316,7 +330,11 @@ class TextWindow(object):
     self.TextWindow.attron(curses.color_pair(self.BorderColor))
     self.TextWindow.border()
     self.TextWindow.attroff(curses.color_pair(self.BorderColor))
-    self.DisplayTitle(self.Title,self.TitleColor)
+    self.DisplayTitle()
+    
+
+
+
     self.TextWindow.refresh()
     if (self.ShowBorder  == 'Y'):
       self.CurrentRow    = 1
@@ -380,7 +398,7 @@ class TextPad(object):
     self.TextPad.attron(curses.color_pair(self.BorderColor))
     self.TextPad.border()
     self.TextPad.attroff(curses.color_pair(self.BorderColor))
-    self.DisplayTitle(self.Title,self.TitleColor)
+    self.DisplayTitle()
     self.TextPad.refresh(0,0,self.y1,self.x1,self.y2,self.x2)
     if (self.ShowBorder  == 'Y'):
       self.CurrentRow    = 1
@@ -397,7 +415,7 @@ class TextPad(object):
 def ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo):
   Window2.ScrollPrint('ErrorHandler',10,TimeStamp=True)
   Window4.ScrollPrint('** Just a moment...**',8)
-  time.sleep(1)
+  time.sleep(2)
   CallingFunction =  inspect.stack()[1][3]
   FinalCleanup(stdscr)
   print("")
@@ -495,7 +513,7 @@ def CreateTextWindows():
   #Window4 Coordinates (packet data)
   Window4Height = 40
   #Window4Length = Window1Length + Window2Length + Window3Length + 2
-  Window4Length = 115
+  Window4Length = 80
   Window4x1 = 0
   Window4y1 = Window1y2 
   Window4x2 = Window4x1 + Window4Length
@@ -506,7 +524,7 @@ def CreateTextWindows():
  #displayed inside
  #Window5 Coordinates (to the right of window4)
   Window5Height = 40
-  Window5Length = 50
+  Window5Length = 45
   Window5x1 = Window4x2 + 1
   Window5y1 = Window4y1
   Window5x2 = Window5x1 + Window5Length
@@ -561,14 +579,14 @@ def CreateTextWindows():
     #--------------------------------------
 
     # Create windows
-    TitleWindow   = TextWindow('TitleWindow',1,50,0,0,0,50,'N',0) 
-    StatusWindow  = TextWindow('StatusWindow',1,50,0,51,0,100,'N',0) 
-    StatusWindow2 = TextWindow('StatusWindow2',1,30,0,101,0,130,'N',0) 
-    Window1       = TextWindow('Window1',Window1Height,Window1Length,Window1y1,Window1x1,Window1y2,Window1x2,'Y',2)
-    Window2       = TextWindow('Window2',Window2Height,Window2Length,Window2y1,Window2x1,Window2y2,Window2x2,'Y',3)
-    Window3       = TextWindow('Window3',Window3Height,Window3Length,Window3y1,Window3x1,Window3y2,Window3x2,'Y',4)
-    Window4       = TextWindow('Window4',Window4Height,Window4Length,Window4y1,Window4x1,Window4y2,Window4x2,'Y',6)
-    Window5       = TextWindow('Window5',Window5Height,Window5Length,Window5y1,Window5x1,Window5y2,Window5x2,'Y',5)
+    TitleWindow   = TextWindow('TitleWindow',1,50,0,0,0,50,'N',0,0) 
+    StatusWindow  = TextWindow('StatusWindow',1,50,0,51,0,100,'N',0,0) 
+    StatusWindow2 = TextWindow('StatusWindow2',1,30,0,101,0,130,'N',0,0) 
+    Window1       = TextWindow('Window1',Window1Height,Window1Length,Window1y1,Window1x1,Window1y2,Window1x2,'Y',2,2)
+    Window2       = TextWindow('Window2',Window2Height,Window2Length,Window2y1,Window2x1,Window2y2,Window2x2,'Y',3,3)
+    Window3       = TextWindow('Window3',Window3Height,Window3Length,Window3y1,Window3x1,Window3y2,Window3x2,'Y',4,4)
+    Window4       = TextWindow('Window4',Window4Height,Window4Length,Window4y1,Window4x1,Window4y2,Window4x2,'Y',5,5)
+    Window5       = TextWindow('Window5',Window5Height,Window5Length,Window5y1,Window5x1,Window5y2,Window5x2,'Y',6,6)
     Pad1          = TextPad('Pad1', Pad1Lines,Pad1Columns,Pad1y1,Pad1x1,Pad1y2,Pad1x2,'N',5)
                            # name,  rows,      columns,   y1,    x1,    y2,    x2,ShowBorder,BorderColor):
 
@@ -583,14 +601,22 @@ def CreateTextWindows():
     #Window3.ScrollPrint("Alerts",2)
     #Window4.ScrollPrint("Details",2)
     
-    Window1.DisplayTitle("Info",2)
-    Window2.DisplayTitle("Debug",3)
-    Window3.DisplayTitle("Messages",5)
+    
+    Window1.Title, Window1.TitleColor = "Info",2
+    Window2.Title, Window2.TitleColor = "Debug",3
+    Window3.Title, Window3.TitleColor = "Messages",4
+    Window4.Title, Window4.TitleColor = "Packets",5
+    Window5.Title, Window5.TitleColor = "Keys",6
+    
 
-    #We will overwrite the title with page information during a report, so we store the original first
-    Window4.Title = "──Packets──────────────────────────────────────────────────────────────────────────"
-    Window4.DisplayTitle("",6)
-    Window5.DisplayTitle("Packet Keys",6)
+    Window1.DisplayTitle()
+    Window2.DisplayTitle()
+    Window3.DisplayTitle()
+    Window4.DisplayTitle()
+    Window5.DisplayTitle()
+    
+    
+    
     
 
     
@@ -635,6 +661,9 @@ def fromStr(valstr):
 
 
 def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
+  global DeviceStatus
+  global DeviceName
+
   #This is a recursive funtion that will decode a packet (get key/value pairs from a dictionary )
   #if the value is itself a dictionary, recurse
   Window2.ScrollPrint("DecodePacket",2,TimeStamp=True)
@@ -664,8 +693,16 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
         time.sleep(0.25)
         DecodePacket(Key,Value,Filler,FillerChar)  
       else:
+        #check for special keys
         if(Key == 'raw'):
           Window4.ScrollPrint("{}Raw value not yet suported by DecodePacket function".format(Filler),2)
+        elif(Key == 'shortName'):
+          Window4.ScrollPrint("{}SHORT NAME FOUND".format(Filler),3)
+          UpdateDeviceWindow(NewDeviceName=Key,Color=2)
+          DeviceName = Key
+
+        
+          
         else:
           Window4.ScrollPrint("  {}{}: {}".format(Filler,Key,Value),2)
           #Window4.ScrollPrint("{}Key: {}".format(Filler,Key),2)
@@ -679,7 +716,7 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
 
 def onReceive(packet, interface): # called when a packet arrives
     Window2.ScrollPrint("onReceive",2,TimeStamp=True)
-    Window4.ScrollPrint("",2)    
+    Window4.ScrollPrint(" ",2)    
     Window4.ScrollPrint("==Packet RECEIVED=======================================",2)
 
     Decoded  = packet.get('decoded')
@@ -707,8 +744,9 @@ def onReceive(packet, interface): # called when a packet arrives
 
 
 def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
-    Window2.ScrollPrint('onConnectionEstablished',2,TimeStamp=True)
-    Window1.ScrollPrint('Connected',2,TimeStamp=True)
+    #Window2.ScrollPrint('onConnectionEstablished',2,TimeStamp=True)
+    #Window1.WindowPrint(1,1,"Status: CONNECTED",2)
+    UpdateStatusWindow(NewDeviceStatus = "CONNECTED",Color=2)
     
     From = "BaseStation"
     To   = "All"
@@ -735,13 +773,13 @@ def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (
 
 def onConnectionLost(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
     Window2.ScrollPrint('onConnectionLost',2,TimeStamp=True)
-    Window1.ScrollPrint('Disconnected',2,TimeStamp=True)
+    UpdateStatusWindow(NewDeviceStatus = "DISCONNECTED",Color=1)
 
 
 def onNodeUpdated(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
     Window2.ScrollPrint('onNodeUpdated',2,TimeStamp=True)
-    Window1.ScrollPrint('Update received',2,TimeStamp=True)
-
+    Window1.WindowPrint(1,4,'UPDATE RECEIVED',1,TimeStamp=True)
+    
     Window4.ScrollPrint("",2)    
     Window4.ScrollPrint("==NODE UPDATED =======================================",4)
 
@@ -771,6 +809,7 @@ def PollKeyboard():
   global Window2
   global interface
 
+  #Window2.ScrollPrint("PollKeyboard",2,TimeStamp=True)
   ReturnChar = ""
   c = ""
   #curses.filter()
@@ -809,6 +848,7 @@ def ProcessKeypress(Key):
 
   OutputLine = "** KEYPRESS: " + str(Key) + " **"
   Window2.ScrollPrint (OutputLine,5)
+  # c = clear screen
   # p = pause
   # q = quit
   # r = reboot
@@ -833,15 +873,7 @@ def ProcessKeypress(Key):
     exit()
 
   elif (Key == "c"):
-      Window1.Clear()
-      Window2.Clear()
-      Window3.Clear()
-      Window4.Clear()
-      Window5.Clear()
-
-      Window2.DisplayTitle(Window2.Title,3)
-      Window4.DisplayTitle(Window4.Title,6)
-      Window2.ScrollPrint("Clear screen",2)
+    ClearAllWindows()
 
   elif (Key == "r"):
     Window2.ScrollPrint('** REBOOTING **',1)
@@ -856,7 +888,8 @@ def ProcessKeypress(Key):
 
 
 def SendMessagePacket(interface, Message=''):
-
+    Window2.ScrollPrint("SendMessagePacket",2)
+    Window4.Clear()
     stdscr.addstr(38, 4, "Enter message: (hit Ctrl-G to send)")
 
     # height, length, upper left coordinates (y,x)
@@ -877,13 +910,14 @@ def SendMessagePacket(interface, Message=''):
   
     interface.sendText(TheMessage)
 
-    Window4.ScrollPrint("",2)    
+    Window4.Clear()
+    Window4.ScrollPrint(" ",2)    
     Window4.ScrollPrint("==Packet SENT===========================================",3)
     Window4.ScrollPrint("To:     All:",3)
     Window4.ScrollPrint("From    BaseStation:",3)
     Window4.ScrollPrint("Message {}:".format(TheMessage),3)
     Window4.ScrollPrint("========================================================",3)
-    Window4.ScrollPrint("",2)    
+    Window4.ScrollPrint(" ",2)    
 
 
 
@@ -891,7 +925,7 @@ def SendMessagePacket(interface, Message=''):
 
 
 def GoToSleep(TimeToSleep):
-  
+  Window2.ScrollPrint("GoToSleep({})".format(TimeToSleep),2,TimeStamp=True)
   for i in range (0,TimeToSleep):
     #Check for keyboard input      --
     Key = PollKeyboard()
@@ -899,6 +933,21 @@ def GoToSleep(TimeToSleep):
       SendMessagePacket
       return
     time.sleep(1)
+
+def ClearAllWindows():
+  Window2.ScrollPrint("Title:{}".format(Window1.Title),2)
+  Window2.ScrollPrint("Title:{}".format(Window2.Title),2)
+  Window2.ScrollPrint("Title:{}".format(Window3.Title),2)
+  Window2.ScrollPrint("Title:{}".format(Window4.Title),2)
+  time.sleep(2)
+  Window1.Clear()
+  Window2.Clear()
+  Window3.Clear()
+  Window4.Clear()
+  Window5.Clear()
+  Window2.ScrollPrint("**Clearing screens**",2)
+  UpdateStatusWindow()
+
 
 #------------------------------------------------------------------------------
 #   __  __    _    ___ _   _                                                 --
@@ -922,7 +971,15 @@ def GoToSleep(TimeToSleep):
 
 def main(stdscr):
   global interface
+  global DeviceStatus
+  global DeviceName
+
   try:
+
+    DeviceStatus    = '??'
+    PacketsReceived = 0
+    PacketsSent     = 0
+
 
     CreateTextWindows()
     Window4.ScrollPrint("System initiated",2)
@@ -932,9 +989,6 @@ def main(stdscr):
     #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
     Window4.ScrollPrint("Finding Meshtastic device...",2)
     interface = meshtastic.SerialInterface()
-
-
-
 
     #subscribe to connection and receive channels
     pub.subscribe(onConnectionEstablished, "meshtastic.connection.established")
@@ -972,8 +1026,41 @@ def main(stdscr):
 
 
 
+def UpdateStatusWindow(NewDeviceStatus="",
+                       NewDeviceName="",
+                       Color=2
+    ):
+  #Window2.ScrollPrint("UpdateStatusWindow",2,TimeStamp=True)
+
+  global DeviceStatus
+  global DeviceName
+
+  x1,y1 = 1,1    #DeviceName
+  x2,y2 = 2,1    #DeviceStatus
+  x3,y3 = 3,1    
+  x4,y4 = 4,1
+  x5,y5 = 5,1
+  x6,y6 = 6,1
 
 
+  if(NewDeviceName != ""):
+    DeviceName = NewDeviceName
+
+  if(NewDeviceStatus != ""):
+    DeviceStatus = NewDeviceStatus
+
+  #DeviceName
+  Window1.WindowPrint(y1,x1,"Name:   " + DeviceName,2)
+  Window1.WindowPrint(y1,x1+8,DeviceName,Color)
+
+  #DeviceStatus
+  Window1.WindowPrint(y2,x2,"Status: " + DeviceStatus,2)
+  Window1.WindowPrint(y2,x2+8,DeviceStatus,Color)
+
+
+
+
+  
 
 #--------------------------------------
 # Main (pre-amble                    --
