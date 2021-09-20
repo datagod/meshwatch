@@ -689,11 +689,10 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   Window2.ScrollPrint("DecodePacket",2,TimeStamp=True)
   #Filler = ('-' *  len(inspect.stack(0)))
 
+  #used to indent packets
   if (PacketParent.upper() != 'MAINPACKET'):
     Filler = Filler + FillerChar
-    
-
-  Window4.ScrollPrint("--> {}".format(PacketParent))
+ 
 
   #Print the name/type of the packet
   Window4.ScrollPrint("",2)
