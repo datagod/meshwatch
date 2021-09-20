@@ -120,7 +120,7 @@ global DeviceName
 global DevicePort
 global PacketsReceived
 global PacketsSent
-
+global LastPacketType
 
 #------------------------------------------------------------------------------
 # Functions / Classes                                                        --
@@ -175,7 +175,7 @@ class TextWindow(object):
     current_time = datetime.now().strftime("%H:%M:%S")
 
     if (TimeStamp):
-      PrintLine = current_time + ": " + PrintLine
+      PrintLine =   current_time + ": {}".format(PrintLine)
 
     #expand tabs to X spaces, pad the string with space
     PrintLine = PrintLine.expandtabs(4)
@@ -264,7 +264,7 @@ class TextWindow(object):
 
     except Exception as ErrorMessage:
       TraceMessage = traceback.format_exc()
-      AdditionalInfo = "\nPrintLine:       [" + PrintLine +"]\n" + "PrintableString: [" + PrintableString + "]\n"
+      AdditionalInfo = "PrintLine: {}".format(PrintLine)
 
       ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
       
@@ -290,7 +290,7 @@ class TextWindow(object):
 
     except Exception as ErrorMessage:
       TraceMessage = traceback.format_exc()
-      AdditionalInfo = "PrintLine: " + PrintLine
+      AdditionalInfo = "PrintLine: {}".format(PrintLine)
       ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
         
       
@@ -417,7 +417,6 @@ class TextPad(object):
 def ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo):
   Window2.ScrollPrint('ErrorHandler',10,TimeStamp=True)
   Window4.ScrollPrint('** Just a moment...**',8)
-  time.sleep(1)
   CallingFunction =  inspect.stack()[1][3]
   FinalCleanup(stdscr)
   print("")
@@ -438,7 +437,10 @@ def ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo):
   print("--------------------------------------------------------------")
   print("")
   print("")
-  sys.exit('Good by for now...')
+  time.sleep(2)
+  #sys.exit('Good by for now...')
+  exit(0)
+
 
 def FinalCleanup(stdscr):
   stdscr.keypad(0)
@@ -671,6 +673,7 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   global DevicePort
   global PacketsReceived
   global PacketsSent
+  global LastPacketType
 
 
 
@@ -681,11 +684,13 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
 
   if (PacketParent.upper() != 'MAINPACKET'):
     Filler = Filler + FillerChar
+    
 
   #Print the name/type of the packet
   Window4.ScrollPrint("",2)
   Window4.ScrollPrint(  "{}{}".format(Filler,PacketParent.upper()),2)
-  
+  LastPacketType = PacketParent.upper()
+
   #adjust the input to slow down the output for that cool retro feel
   if (PrintSleep):
     time.sleep(PrintSleep)
@@ -733,7 +738,7 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
 def onReceive(packet, interface): # called when a packet arrives
     global PacketsReceived
     global PacketsSent
-
+    
     PacketsReceived = PacketsReceived + 1
     
 
@@ -970,6 +975,60 @@ def ClearAllWindows():
   UpdateStatusWindow()
 
 
+def UpdateStatusWindow(NewDeviceStatus= "",
+                       NewDeviceName  = "",
+                       NewDevicePort  = "",
+                       Color=2
+    ):
+  #Window2.ScrollPrint("UpdateStatusWindow",2,TimeStamp=True)
+
+  global DeviceStatus
+  global DeviceName
+  global DevicePort
+  global PacketsReceived
+  global PacketsSent
+  global LastPacketType
+
+  x1,y1 = 1,1    #DeviceName
+  x2,y2 = 1,2    #DeviceStatus
+  x3,y3 = 1,3    #DevicePort
+  x4,y4 = 1,4    #PacketsReceived
+  x5,y5 = 1,5    #LastPacketType
+  x6,y6 = 1,6
+
+
+  if(NewDeviceName != ""):
+    DeviceName = NewDeviceName
+
+  if(NewDeviceStatus != ""):
+    DeviceStatus = NewDeviceStatus
+
+  if(NewDevicePort != ""):
+    DevicePort = NewDevicePort
+
+  
+  #DeviceName
+  Window1.WindowPrint(y1,x1,"Name:   ",2)
+  Window1.WindowPrint(y1,x1+8,DeviceName,Color)
+
+  #DeviceStatus
+  Window1.WindowPrint(y2,x2,"Status: " + DeviceStatus,2)
+  Window1.WindowPrint(y2,x2+8,DeviceStatus,Color)
+
+  #DeviceStatus
+  Window1.WindowPrint(y3,x3,"Port:   " + DevicePort,2)
+  Window1.WindowPrint(y3,x3+8,DevicePort,Color)
+
+  #PacketsReceived
+  Window1.WindowPrint(y4,x4,"Packets Received: ",2)
+  Window1.WindowPrint(y4,x4+18,"{}".format(PacketsReceived),Color)
+
+  #LastPacketType
+  Window1.WindowPrint(y5,x5,"PacketType: ",2)
+  Window1.WindowPrint(y5,x5+12,LastPacketType,Color)
+
+
+
 #------------------------------------------------------------------------------
 #   __  __    _    ___ _   _                                                 --
 #  |  \/  |  / \  |_ _| \ | |                                                --
@@ -997,7 +1056,7 @@ def main(stdscr):
   global DevicePort
   global PacketsSent
   global PacketsReceived
-
+  global LastPacketType
   try:
 
     DeviceName      = '??'
@@ -1005,6 +1064,7 @@ def main(stdscr):
     DevicePort      = '??'
     PacketsReceived = 0
     PacketsSent     = 0
+    LastPacketType  = ''
 
 
     CreateTextWindows()
@@ -1052,54 +1112,6 @@ def main(stdscr):
 
 
 
-def UpdateStatusWindow(NewDeviceStatus= "",
-                       NewDeviceName  = "",
-                       NewDevicePort  = "",
-                       Color=2
-    ):
-  #Window2.ScrollPrint("UpdateStatusWindow",2,TimeStamp=True)
-
-  global DeviceStatus
-  global DeviceName
-  global DevicePort
-  global PacketsReceived
-  global PacketsSent
-
-  x1,y1 = 1,1    #DeviceName
-  x2,y2 = 1,2    #DeviceStatus
-  x3,y3 = 1,3    #DevicePort
-  x4,y4 = 1,4    #PacketsReceived
-  x5,y5 = 1,5
-  x6,y6 = 1,6
-
-
-  if(NewDeviceName != ""):
-    DeviceName = NewDeviceName
-
-  if(NewDeviceStatus != ""):
-    DeviceStatus = NewDeviceStatus
-
-  if(NewDevicePort != ""):
-    DevicePort = NewDevicePort
-
-  
-  #DeviceName
-  Window1.WindowPrint(y1,x1,"Name:   ",2)
-  Window1.WindowPrint(y1,x1+8,DeviceName,Color)
-
-  #DeviceStatus
-  Window1.WindowPrint(y2,x2,"Status: " + DeviceStatus,2)
-  Window1.WindowPrint(y2,x2+8,DeviceStatus,Color)
-
-  #DeviceStatus
-  Window1.WindowPrint(y3,x3,"Port:   " + DevicePort,2)
-  Window1.WindowPrint(y3,x3+8,DevicePort,Color)
-
-  #PacketsReceived
-  Window1.WindowPrint(y4,x4,"Packets Received: {}".format(PacketsReceived),2)
-  Window1.WindowPrint(y3,x3+16,DevicePort,Color)
-
-
   
 
 #--------------------------------------
@@ -1133,4 +1145,5 @@ if __name__=='__main__':
       TraceMessage = traceback.format_exc()
       AdditionalInfo = "Main pre-amble"
       ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
+      exit()
 
