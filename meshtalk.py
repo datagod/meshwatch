@@ -43,6 +43,7 @@ import meshtastic
 import time
 from datetime import datetime
 import traceback
+from meshtastic.mesh_pb2 import _HARDWAREMODEL, HardwareModel
 from pubsub import pub
 import argparse
 import collections
@@ -121,6 +122,10 @@ global DevicePort
 global PacketsReceived
 global PacketsSent
 global LastPacketType
+global HardwareModel
+global MacAddress
+global DeviceID
+global BatteryLevel
 
 #------------------------------------------------------------------------------
 # Functions / Classes                                                        --
@@ -674,7 +679,9 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   global PacketsReceived
   global PacketsSent
   global LastPacketType
-
+  global HardwareModel
+  global DeviceID 
+  global BatteryLevl
 
 
   #This is a recursive funtion that will decode a packet (get key/value pairs from a dictionary )
@@ -685,6 +692,8 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   if (PacketParent.upper() != 'MAINPACKET'):
     Filler = Filler + FillerChar
     
+
+  Window4.ScrollPrint("--> {}".format(PacketParent))
 
   #Print the name/type of the packet
   Window4.ScrollPrint("",2)
@@ -701,33 +710,46 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
     for Key in Packet.keys():
       Value = Packet.get(Key) 
 
-      Pad1.PadPrint("{} - {}".format(PacketParent,Key),2,TimeStamp=True)
+      Pad1.PadPrint("{} - {}".format(PacketParent,Key),2)
 
       #if the value paired with this key is another dictionary, keep digging
       if isinstance(Value, collections.abc.Mapping):
         time.sleep(0.25)
-        DecodePacket(Key,Value,Filler,FillerChar)  
+        DecodePacket("{}/{}".format(PacketParent,Key).upper(),Value,Filler,FillerChar)  
       else:
 
-        #check for special keys
-        if(Key == 'raw'):
-          Window4.ScrollPrint("{}Raw value not yet suported by DecodePacket function".format(Filler),2)
-
-        elif(Key == 'shortName'):
-          Window4.ScrollPrint("{}SHORT NAME FOUND".format(Filler),3)
-          UpdateStatusWindow(NewDeviceName=Value,Color=2)
+        if(Key == 'longName'):
           DeviceName = Value
+          UpdateStatusWindow(NewDeviceName=DeviceName,Color=2)
 
         elif(Key == 'portnum'):
-          Window4.ScrollPrint("{}PORT FOUND".format(Filler),3)
-          UpdateStatusWindow(NewDevicePort=Value,Color=2)
           DevicePort = Value
+          UpdateStatusWindow(NewDevicePort=DevicePort,Color=2)
         
-          
+        elif(Key == 'hwModel'):
+          HardwareModel = Value
+          UpdateStatusWindow(NewHardwareModel=HardwareModel,Color=2)
+
+        elif(Key == 'macaddr'):
+          MacAddress = Value
+          UpdateStatusWindow(NewMacAddress=MacAddress,Color=2)
+
+        elif(Key == 'id' and PacketParent == 'MYNODE/USER'):
+          DeviceID = Value
+          UpdateStatusWindow(NewDeviceID=DeviceID,Color=2)
+
+        elif(Key == 'batteryLevel'):
+          BatteryLevel = Value
+          UpdateStatusWindow(NewBatteryLevel=BatteryLevel,Color=2)
+
+        #Print KEY if not RAW (gotta decode those further, or ignore)
+        if(Key == 'raw'):
+          Window4.ScrollPrint("{}Raw value not yet suported by DecodePacket function".format(Filler),2)
         else:
           Window4.ScrollPrint("  {}{}: {}".format(Filler,Key,Value),2)
-          #Window4.ScrollPrint("{}Key: {}".format(Filler,Key),2)
-          #Window4.ScrollPrint("{}Val: {}".format(Filler,Value),2)
+
+
+        
   else:
     Window2.ScrollPrint("Warning: Not a packet!",5,TimeStamp=True)
   
@@ -876,10 +898,12 @@ def ProcessKeypress(Key):
   OutputLine = "** KEYPRESS: " + str(Key) + " **"
   Window2.ScrollPrint (OutputLine,5)
   # c = clear screen
+  # i = get node info
   # p = pause
   # q = quit
   # r = reboot
   # s = Send message
+
 
     
   if (Key == "p" or Key == " "):
@@ -894,6 +918,13 @@ def ProcessKeypress(Key):
   #elif (Key == "i"):
   #  IPAddress = ShowIPAddress()
   #  ar.ShowScrollingBanner2(IPAddress,0,225,0,3,0.03)
+
+
+  elif (Key == "i"):
+    Window4.Clear()
+    GetMyNodeInfo(interface)
+    time.sleep(3)
+    
 
   elif (Key == "q"):
     FinalCleanup(stdscr)
@@ -975,9 +1006,13 @@ def ClearAllWindows():
   UpdateStatusWindow()
 
 
-def UpdateStatusWindow(NewDeviceStatus= "",
-                       NewDeviceName  = "",
-                       NewDevicePort  = "",
+def UpdateStatusWindow(NewDeviceStatus  = '',
+                       NewDeviceName    = '',
+                       NewDevicePort    = '',
+                       NewHardwareModel = '',
+                       NewMacAddress    = '',
+                       NewDeviceID      = '',
+                       NewBatteryLevel  = -1,
                        Color=2
     ):
   #Window2.ScrollPrint("UpdateStatusWindow",2,TimeStamp=True)
@@ -988,44 +1023,84 @@ def UpdateStatusWindow(NewDeviceStatus= "",
   global PacketsReceived
   global PacketsSent
   global LastPacketType
+  global HardwareModel
+  global MacAddress
+  global DeviceID
+  global BatteryLevel
 
   x1,y1 = 1,1    #DeviceName
-  x2,y2 = 1,2    #DeviceStatus
-  x3,y3 = 1,3    #DevicePort
-  x4,y4 = 1,4    #PacketsReceived
-  x5,y5 = 1,5    #LastPacketType
-  x6,y6 = 1,6
+  x2,y2 = 1,2    #HardwareModel
+  x3,y3 = 1,3    #DeviceStatus
+  x4,y4 = 1,4    #MacAddress
+  x5,y5 = 1,5    #DeviceID
+  x6,y6 = 1,6    #PacketsDecoded
+  x7,y7 = 1,7    #LastPacketType
+  x8,y8 = 1,8    #BatteryLevel
 
-
-  if(NewDeviceName != ""):
+  if(NewDeviceName != ''):
     DeviceName = NewDeviceName
 
-  if(NewDeviceStatus != ""):
+  if(NewDeviceStatus != ''):
     DeviceStatus = NewDeviceStatus
 
-  if(NewDevicePort != ""):
+  if(NewDevicePort != ''):
     DevicePort = NewDevicePort
 
-  
+  if(NewHardwareModel != ''):
+    HardwareModel = NewHardwareModel
+
+  if(NewMacAddress != ''):
+    MacAddress = NewMacAddress
+
+  if(NewDeviceID != ''):
+    DeviceID = NewDeviceID
+
+  if(NewBatteryLevel >-1):
+   BatteryLevel = NewBatteryLevel
+
+
   #DeviceName
-  Window1.WindowPrint(y1,x1,"Name:   ",2)
-  Window1.WindowPrint(y1,x1+8,DeviceName,Color)
+  Window1.WindowPrint(y1,x1,"UserName:   ",2)
+  Window1.WindowPrint(y1,x1+12,DeviceName,Color)
 
   #DeviceStatus
-  Window1.WindowPrint(y2,x2,"Status: " + DeviceStatus,2)
-  Window1.WindowPrint(y2,x2+8,DeviceStatus,Color)
+  Window1.WindowPrint(y2,x2,"Model:      " + HardwareModel,2)
+  Window1.WindowPrint(y2,x2+12,HardwareModel,Color)
 
   #DeviceStatus
-  Window1.WindowPrint(y3,x3,"Port:   " + DevicePort,2)
-  Window1.WindowPrint(y3,x3+8,DevicePort,Color)
+  Window1.WindowPrint(y3,x3,"Status:     " + DeviceStatus,2)
+  Window1.WindowPrint(y3,x3+12,DeviceStatus,Color)
+
+  #MacAddress
+  Window1.WindowPrint(y4,x4,"MacAddress: ",2)
+  Window1.WindowPrint(y4,x4+12,MacAddress,Color)
+
+  #DeviceID
+  Window1.WindowPrint(y5,x5,"DeviceID:   ",2)
+  Window1.WindowPrint(y5,x5+12,DeviceID,Color)
 
   #PacketsReceived
-  Window1.WindowPrint(y4,x4,"Packets Received: ",2)
-  Window1.WindowPrint(y4,x4+18,"{}".format(PacketsReceived),Color)
+  Window1.WindowPrint(y6,x6,"Packets Decoded: ",2)
+  Window1.WindowPrint(y6,x6+17,"{}".format(PacketsReceived),Color)
 
   #LastPacketType
-  Window1.WindowPrint(y5,x5,"PacketType: ",2)
-  Window1.WindowPrint(y5,x5+12,LastPacketType,Color)
+  Window1.WindowPrint(y7,x7,"LastPacketType:  ",2)
+  Window1.WindowPrint(y7,x7+17,LastPacketType,Color)
+
+  #BatteryLevel
+  Window1.WindowPrint(y8,x8,"BatteryLevel:    ",2)
+  Window1.WindowPrint(y8,x8+17,"{}".format(BatteryLevel),Color)
+
+
+
+def GetMyNodeInfo(interface):
+
+    Window4.ScrollPrint(" ",2)
+    Window4.ScrollPrint("--MyNodeInfo-----------------------------------",3)
+    TheNode = interface.getMyNodeInfo()
+    DecodePacket('MYNODE',TheNode,'','',0.2)
+    Window4.ScrollPrint("-----------------------------------------------",3)
+    
 
 
 
@@ -1057,6 +1132,11 @@ def main(stdscr):
   global PacketsSent
   global PacketsReceived
   global LastPacketType
+  global HardwareModel
+  global MacAddress
+  global DeviceID
+  global BatteryLevel
+
   try:
 
     DeviceName      = '??'
@@ -1065,6 +1145,11 @@ def main(stdscr):
     PacketsReceived = 0
     PacketsSent     = 0
     LastPacketType  = ''
+    HardwareModel   = ''
+    MacAddress      = ''
+    DeviceName      = ''
+    DeviceID        = ''
+    BatteryLevel    = -1
 
 
     CreateTextWindows()
@@ -1073,13 +1158,20 @@ def main(stdscr):
     
     #Instanciate a meshtastic object
     #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
-    Window4.ScrollPrint("Finding Meshtastic device...",2)
+    Window4.ScrollPrint("Finding Meshtastic device",2)
     interface = meshtastic.SerialInterface()
+
+    #Get node info for connected device
+    Window4.ScrollPrint("Requesting device info",2)
+    GetMyNodeInfo(interface)
+
+
 
     #subscribe to connection and receive channels
     pub.subscribe(onConnectionEstablished, "meshtastic.connection.established")
     pub.subscribe(onConnectionLost,        "meshtastic.connection.lost")
     pub.subscribe(onNodeUpdated,           "meshtastic.node.updated")
+
 
 
     #Check for message to be sent (command line option)
