@@ -105,7 +105,8 @@ TimeToSleep = args.time
 #hide the cursor
 #curses.curs_set(0)
 
-global PrintSleep   #controls how fast the screens scroll
+global PrintSleep    #controls how fast the screens scroll
+global OldPrintSleep #controls how fast the screens scroll
 global TitleWindow
 global StatusWindow
 global Window1
@@ -113,6 +114,7 @@ global Window2
 global Window3
 global Window4
 global Window5
+global Window6
 global Pad1
 global IPAddress
 global Interface
@@ -126,8 +128,10 @@ global HardwareModel
 global MacAddress
 global DeviceID
 global BatteryLevel
+global PauseOutput
 
-PrintSleep = 0.1
+PrintSleep    = 0.1
+OldPrintSleep = PrintSleep
 
 #------------------------------------------------------------------------------
 # Functions / Classes                                                        --
@@ -534,9 +538,9 @@ def CreateTextWindows():
   Window4y2 = Window4y1 + Window4Height
 
 
- #We are going to put a window here as a border, but have the pad 
- #displayed inside
- #Window5 Coordinates (to the right of window4)
+  #We are going to put a window here as a border, but have the pad 
+  #displayed inside
+  #Window5 Coordinates (to the right of window4)
   Window5Height = 40
   Window5Length = 70
   Window5x1 = Window4x2 + 1
@@ -552,6 +556,13 @@ def CreateTextWindows():
   Pad1x2 = Window5x2 -1
   Pad1y2 = Window5y2 -1
 
+  #Help Window
+  HelpWindowHeight = 10
+  HelpWindowLength = 30
+  HelpWindowx1 = Window5x2 + 1
+  HelpWindowy1 = Window5y1
+  HelpWindowx2 = HelpWindowx1 + HelpWindowLength
+  HelpWindowy2 = HelpWindowy1 + HelpWindowHeight
 
 
   
@@ -582,6 +593,7 @@ def CreateTextWindows():
     Window3       = TextWindow('Window3',Window3Height,Window3Length,Window3y1,Window3x1,Window3y2,Window3x2,'Y',4,4)
     Window4       = TextWindow('Window4',Window4Height,Window4Length,Window4y1,Window4x1,Window4y2,Window4x2,'Y',5,5)
     Window5       = TextWindow('Window5',Window5Height,Window5Length,Window5y1,Window5x1,Window5y2,Window5x2,'Y',6,6)
+    HelpWindow    = TextWindow('HelpWindow',HelpWindowHeight,HelpWindowLength,HelpWindowy1,HelpWindowx1,HelpWindowy2,HelpWindowx2,'Y',7,7)
     Pad1          = TextPad('Pad1', Pad1Lines,Pad1Columns,Pad1y1,Pad1x1,Pad1y2,Pad1x2,'N',5)
                            # name,  rows,      columns,   y1,    x1,    y2,    x2,ShowBorder,BorderColor):
 
@@ -604,7 +616,9 @@ def CreateTextWindows():
     Window3.Title, Window3.TitleColor = "Messages",4
     Window4.Title, Window4.TitleColor = "Packets",5
     Window5.Title, Window5.TitleColor = "Keys",6
+    HelpWindow.Title, HelpWindow.TitleColor = "Help",7
     
+
 
     TitleWindow.WindowPrint(0,0,TitleWindow.Title)
     Window1.DisplayTitle()
@@ -612,9 +626,10 @@ def CreateTextWindows():
     Window3.DisplayTitle()
     Window4.DisplayTitle()
     Window5.DisplayTitle()
+    HelpWindow.DisplayTitle()
     
     
-    
+    DisplayHelpInfo() 
     
 
     
@@ -741,7 +756,7 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
 
         #Print KEY if not RAW (gotta decode those further, or ignore)
         if(Key == 'raw'):
-          Window4.ScrollPrint("{}Raw value not yet suported by DecodePacket function".format(Filler),2)
+          Window4.ScrollPrint("{}  RAW value not yet suported by DecodePacket function".format(Filler),2)
         else:
           Window4.ScrollPrint("  {}{}: {}".format(Filler,Key,Value),2)
 
@@ -771,11 +786,12 @@ def onReceive(packet, interface): # called when a packet arrives
     From     = packet.get('from')
 
     #Even better method, use this recursively to decode all the packets of packets
-    DecodePacket('MainPacket',packet,Filler='',FillerChar='  ',PrintSleep=PrintSleep)
+    DecodePacket('MainPacket',packet,Filler='',FillerChar='',PrintSleep=PrintSleep)
 
     if(Message):
       Window3.ScrollPrint("From: {} - {}".format(From,Message),2,TimeStamp=True)
     Window4.ScrollPrint("=================================================================",2)
+    Window4.ScrollPrint(" ",2)    
 
     #example of scrolling the window
     #Window4.TextWindow.idlok(1)
@@ -890,6 +906,9 @@ def ProcessKeypress(Key):
   global Window2
   global Window4
   global interface
+  global PauseOutput
+  global PrintSleep 
+  global OldPrintSleep 
   count  = 0
 
   OutputLine = "** KEYPRESS: " + str(Key) + " **"
@@ -907,10 +926,14 @@ def ProcessKeypress(Key):
     PauseOutput = not (PauseOutput)
     if (PauseOutput == True):
       Window2.ScrollPrint("Pausing output",2)
-      StatusWindow.ScrollPrint("** Output Paused - press SPACE to resume **",3)
+      StatusWindow.WindowPrint(0,0,"** Output SLOW - press SPACE again to cancel **",1)
+      PrintSleep = 1
+
     else:
       Window2.ScrollPrint("Resuming output",2)
-      StatusWindow.ScrollPrint("",2)
+      StatusWindow.WindowPrint(0,0," ",3)
+      PrintSleep = OldPrintSleep
+      #StatusWindow.ScrollPrint("",2)
 
   #elif (Key == "i"):
   #  IPAddress = ShowIPAddress()
@@ -1088,6 +1111,15 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
   Window1.WindowPrint(y8,x8,"BatteryLevel:    ",2)
   Window1.WindowPrint(y8,x8+17,"{}".format(BatteryLevel),Color)
 
+def DisplayHelpInfo():
+  HelpWindow.ScrollPrint("C - CLEAR Screen",7)
+  HelpWindow.ScrollPrint("I - Request node INFO",7)
+  HelpWindow.ScrollPrint("Q - QUIT program",7)
+  HelpWindow.ScrollPrint("R - RESTART MeshTalk",7)
+  HelpWindow.ScrollPrint("S - SEND message",7)
+  HelpWindow.ScrollPrint("SPACEBAR - Slow/Fast output",7)
+  
+  
 
 
 def GetMyNodeInfo(interface):
@@ -1134,6 +1166,7 @@ def main(stdscr):
   global MacAddress
   global DeviceID
   global BatteryLevel
+  global PauseOutput
 
   try:
 
@@ -1148,6 +1181,7 @@ def main(stdscr):
     DeviceName      = ''
     DeviceID        = ''
     BatteryLevel    = -1
+    PauseOutput     = False
 
 
     CreateTextWindows()
