@@ -105,7 +105,7 @@ TimeToSleep = args.time
 #hide the cursor
 #curses.curs_set(0)
 
-
+global PrintSleep   #controls how fast the screens scroll
 global TitleWindow
 global StatusWindow
 global Window1
@@ -126,6 +126,8 @@ global HardwareModel
 global MacAddress
 global DeviceID
 global BatteryLevel
+
+PrintSleep = 0.1
 
 #------------------------------------------------------------------------------
 # Functions / Classes                                                        --
@@ -169,7 +171,7 @@ class TextWindow(object):
       self.StartColumn  = 0
 
 
-
+  
   def ScrollPrint(self,PrintLine,Color=2,TimeStamp=False,BoldLine=True): 
     #print(PrintLine)
     #for now the string is printed in the window and the current row is incremented
@@ -277,13 +279,13 @@ class TextWindow(object):
         
   def WindowPrint(self,y,x,PrintLine,Color=2): 
     #print at a specific coordinate within the window
-    try:
+    #try:
      
       #expand tabs to X spaces, pad the string with space then truncate
       PrintLine = PrintLine.expandtabs(4)
       
       #pad the print line with spaces then truncate at the display length
-      PrintLine = PrintLine.ljust(self.DisplayColumns)
+      PrintLine = PrintLine.ljust(self.DisplayColumns -1)
       PrintLine = PrintLine[0:self.DisplayColumns -x]
 
       self.TextWindow.attron(curses.color_pair(Color))
@@ -293,10 +295,10 @@ class TextWindow(object):
       
       self.TextWindow.refresh()
 
-    except Exception as ErrorMessage:
-      TraceMessage = traceback.format_exc()
-      AdditionalInfo = "PrintLine: {}".format(PrintLine)
-      ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
+    #except Exception as ErrorMessage:
+    #  TraceMessage = traceback.format_exc()
+    #  AdditionalInfo = "PrintLine: {}".format(PrintLine)
+    #  ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
         
       
 
@@ -317,8 +319,6 @@ class TextWindow(object):
       if (self.rows > 2):
         #print new line in bold        
         self.TextWindow.addstr(0,2,Title)
-
-
       else:
         print ("ERROR - You cannot display title on a window smaller than 3 rows")
 
@@ -470,6 +470,7 @@ def CreateTextWindows():
   global Window3
   global Window4
   global Window5
+  global HelpWindow
   global Pad1
 
 
@@ -519,10 +520,14 @@ def CreateTextWindows():
   Window3x2 = Window3x1 + Window3Length
   Window3y2 = Window3y1 + Window3Height
 
+
+
+
+
   #Window4 Coordinates (packet data)
   Window4Height = 40
   #Window4Length = Window1Length + Window2Length + Window3Length + 2
-  Window4Length = 80
+  Window4Length = 70
   Window4x1 = 0
   Window4y1 = Window1y2 
   Window4x2 = Window4x1 + Window4Length
@@ -533,7 +538,7 @@ def CreateTextWindows():
  #displayed inside
  #Window5 Coordinates (to the right of window4)
   Window5Height = 40
-  Window5Length = 45
+  Window5Length = 70
   Window5x1 = Window4x2 + 1
   Window5y1 = Window4y1
   Window5x2 = Window5x1 + Window5Length
@@ -548,25 +553,6 @@ def CreateTextWindows():
   Pad1y2 = Window5y2 -1
 
 
-
- #old layout
- #We are going to put a window here as a border, but have the pad 
- #displayed inside
- #Window5 Coordinates
-#  Window5Height = 60
-#  Window5Length = 50
-#  Window5y1 = 1
-#  Window5x1 = Window3x2 + 1
-#  Window5x2 = Window5x1 + Window5Length
-#  Window5y2 = Window5y1 + Window5Height
-  
-  # Coordinates (scrolling pad/window for showing keys being decoded)
-#  Pad1Columns = Window5Length -2
-#  Pad1Lines   = Window5Height -2
-#  Pad1x1 = Window5x1+1
-#  Pad1y1 = Window5y1+1
-#  Pad1x2 = Window5x2 -1
-#  Pad1y2 = Window5y2 -1
 
   
 
@@ -603,15 +589,14 @@ def CreateTextWindows():
     
 
     # Display the title  
-    #TitleWindow.ScrollPrint("──MeshTalk 2021──",2)
-    #StatusWindow.ScrollPrint("Preparing devices",6)
+        #StatusWindow.ScrollPrint("Preparing devices",6)
     #Window1.ScrollPrint("Channel Info",2)
     #Window2.ScrollPrint("Debug Info",2)
     #Window3.ScrollPrint("Alerts",2)
     #Window4.ScrollPrint("Details",2)
     
     #each title needs to be initialized or you get errors in scrollprint
-    TitleWindow.Title,   TitleWindow.TitleColor   = "",2
+    TitleWindow.Title,   TitleWindow.TitleColor   = "--MeshTalk 1.0--",2
     StatusWindow.Title,  StatusWindow.TitleColor  = "",2
     StatusWindow2.Title, StatusWindow2.TitleColor = "",2
     Window1.Title, Window1.TitleColor = "Device Info",2
@@ -621,6 +606,7 @@ def CreateTextWindows():
     Window5.Title, Window5.TitleColor = "Keys",6
     
 
+    TitleWindow.WindowPrint(0,0,TitleWindow.Title)
     Window1.DisplayTitle()
     Window2.DisplayTitle()
     Window3.DisplayTitle()
@@ -693,28 +679,40 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   if (PacketParent.upper() != 'MAINPACKET'):
     Filler = Filler + FillerChar
  
+  Window4.ScrollPrint("{}".format(PacketParent).upper(),2)
 
-  #Print the name/type of the packet
-  Window4.ScrollPrint("",2)
-  Window4.ScrollPrint(  "{}{}".format(Filler,PacketParent.upper()),2)
-  LastPacketType = PacketParent.upper()
 
   #adjust the input to slow down the output for that cool retro feel
-  if (PrintSleep):
+  if (PrintSleep > 0):
     time.sleep(PrintSleep)
   
 
   #if the packet is a dictionary, decode it
   if isinstance(Packet, collections.abc.Mapping):
+
+    
     for Key in Packet.keys():
       Value = Packet.get(Key) 
 
+      if (PrintSleep > 0):
+        time.sleep(PrintSleep)
+  
+
+      #Pad1.PadPrint("{} - {}".format(PacketParent,Key),2)
       Pad1.PadPrint("{} - {}".format(PacketParent,Key),2)
 
       #if the value paired with this key is another dictionary, keep digging
       if isinstance(Value, collections.abc.Mapping):
-        time.sleep(0.25)
-        DecodePacket("{}/{}".format(PacketParent,Key).upper(),Value,Filler,FillerChar)  
+
+        #Print the name/type of the packet
+        Window4.ScrollPrint(" ",2)
+        #Window4.ScrollPrint("{}".format(Key).upper(),2)
+        LastPacketType = Key.upper()
+
+        DecodePacket("{}/{}".format(PacketParent,Key).upper(),Value,Filler,FillerChar,PrintSleep=PrintSleep)  
+
+
+
       else:
 
         if(Key == 'longName'):
@@ -773,7 +771,7 @@ def onReceive(packet, interface): # called when a packet arrives
     From     = packet.get('from')
 
     #Even better method, use this recursively to decode all the packets of packets
-    DecodePacket('MainPacket',packet,Filler='',FillerChar='  ',PrintSleep=0.3)
+    DecodePacket('MainPacket',packet,Filler='',FillerChar='  ',PrintSleep=PrintSleep)
 
     if(Message):
       Window3.ScrollPrint("From: {} - {}".format(From,Message),2,TimeStamp=True)
@@ -832,7 +830,7 @@ def onNodeUpdated(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect
     Window4.ScrollPrint("==NODE UPDATED =======================================",4)
 
     try:
-      DecodePacket('Node',packet,Filler='',FillerChar='  ')
+      DecodePacket('Node',packet,Filler='',FillerChar='  ',PrintSleep = PrintSleep)
 
     except Exception as ErrorMessage:
       TraceMessage = traceback.format_exc()
@@ -1095,10 +1093,11 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
 def GetMyNodeInfo(interface):
 
     Window4.ScrollPrint(" ",2)
-    Window4.ScrollPrint("--MyNodeInfo-----------------------------------",3)
+    Window4.ScrollPrint("==MyNodeInfo===================================",3)
     TheNode = interface.getMyNodeInfo()
-    DecodePacket('MYNODE',TheNode,'','',0.2)
-    Window4.ScrollPrint("-----------------------------------------------",3)
+    DecodePacket('MYNODE',TheNode,'','',PrintSleep =PrintSleep)
+    Window4.ScrollPrint("===============================================",3)
+    Window4.ScrollPrint(" ",2)
     
 
 
