@@ -116,6 +116,8 @@ global Window4
 global Window5
 global Window6
 global Pad1
+global InputMessageBox
+global INputMessageWindow
 global IPAddress
 global Interface
 global DeviceStatus
@@ -477,7 +479,8 @@ def CreateTextWindows():
   global HelpWindow
   global Pad1
   global SendMessageWindow
-  global SendMessageBox
+  global InputMessageWindow
+  global InputMessageBox
 
 
   #Colors are numbered, and start_color() initializes 8 
@@ -567,15 +570,25 @@ def CreateTextWindows():
   HelpWindowy2 = HelpWindowy1 + HelpWindowHeight
 
   #SendMessage Window
-  #We won't display the border or title, otherwise the text gather
-  #function will include those characters
-  SendMessageWindowHeight = 4
+  #This window will be used to display the border
+  #and title and will surround the input window
+  SendMessageWindowHeight = 6
   SendMessageWindowLength = 50
-  SendMessageWindowx1 = Window5x2 + 1 + 1
-  SendMessageWindowy1 = HelpWindowy1 + HelpWindowHeight + 1
+  SendMessageWindowx1 = Window5x2 + 1 
+  SendMessageWindowy1 = HelpWindowy1 + HelpWindowHeight 
   SendMessageWindowx2 = SendMessageWindowx1 + SendMessageWindowLength
   SendMessageWindowy2 = SendMessageWindowy1 + SendMessageWindowHeight
   
+  #InputMessage Window
+  #This window will be used get the text to be sent
+  InputMessageWindowHeight = SendMessageWindowHeight -2
+  InputMessageWindowLength = SendMessageWindowLength -2
+  InputMessageWindowx1 = Window5x2 + 2 
+  InputMessageWindowy1 = HelpWindowy1 + HelpWindowHeight +1
+  InputMessageWindowx2 = InputMessageWindowx1 + InputMessageWindowLength -2
+  InputMessageWindowy2 = InputMessageWindowy1 + InputMessageWindowHeight -2
+  
+
 
   try:
 
@@ -605,8 +618,9 @@ def CreateTextWindows():
     Window4       = TextWindow('Window4',Window4Height,Window4Length,Window4y1,Window4x1,Window4y2,Window4x2,'Y',5,5)
     Window5       = TextWindow('Window5',Window5Height,Window5Length,Window5y1,Window5x1,Window5y2,Window5x2,'Y',6,6)
     HelpWindow    = TextWindow('HelpWindow',HelpWindowHeight,HelpWindowLength,HelpWindowy1,HelpWindowx1,HelpWindowy2,HelpWindowx2,'Y',7,7)
-    SendMessageWindow = TextWindow('SendMessageWindow',SendMessageWindowHeight,SendMessageWindowLength,SendMessageWindowy1,SendMessageWindowx1,SendMessageWindowy2,SendMessageWindowx2,'N',0,1)
-    Pad1              = TextPad('Pad1', Pad1Lines,Pad1Columns,Pad1y1,Pad1x1,Pad1y2,Pad1x2,'N',5)
+    SendMessageWindow  = TextWindow('SendMessageWindow',SendMessageWindowHeight,SendMessageWindowLength,SendMessageWindowy1,SendMessageWindowx1,SendMessageWindowy2,SendMessageWindowx2,'Y',7,7)
+    InputMessageWindow = TextWindow('InputMessageWindow',InputMessageWindowHeight,InputMessageWindowLength,InputMessageWindowy1,InputMessageWindowx1,InputMessageWindowy2,InputMessageWindowx2,'N',7,7)
+    Pad1               = TextPad('Pad1', Pad1Lines,Pad1Columns,Pad1y1,Pad1x1,Pad1y2,Pad1x2,'N',5)
 
 
     
@@ -628,7 +642,8 @@ def CreateTextWindows():
     Window4.Title, Window4.TitleColor = "Packets",5
     Window5.Title, Window5.TitleColor = "Keys",6
     HelpWindow.Title, HelpWindow.TitleColor = "Help",7
-    #SendMessageWindow.Title, HelpWindow.TitleColor = "Send Message",7
+    SendMessageWindow.Title, SendMessageWindow.TitleColor = "Press S to send a message",7
+    
     
 
 
@@ -644,14 +659,15 @@ def CreateTextWindows():
     DisplayHelpInfo() 
     
     #Prepare edit window for send message
-    SendMessageBox = Textbox(SendMessageWindow.TextWindow)
+    InputMessageBox = Textbox(InputMessageWindow.TextWindow)
     
 
+    #NORTE: we don't need this anymore, as the SendMessageWindow has replaced it
     #draw a box around the editwindow
     #Upper left corner coordinates, lower right coordinate
-    rectangle(stdscr, SendMessageWindowy1-1, SendMessageWindowx1-1, SendMessageWindowy2+1, SendMessageWindowx2+1)
-    stdscr.addstr(SendMessageWindowy1-1, SendMessageWindowx1+1, "Enter message: (hit Ctrl-G to send)",curses.color_pair(7))
-    stdscr.refresh()
+    #rectangle(stdscr, SendMessageWindowy1-1, SendMessageWindowx1-1, SendMessageWindowy2+1, SendMessageWindowx2+1)
+    #stdscr.addstr(SendMessageWindowy1-1, SendMessageWindowx1+1, "Enter message: (hit Ctrl-G to send)",curses.color_pair(7))
+    #stdscr.refresh()
 
 
 
@@ -990,14 +1006,28 @@ def ProcessKeypress(Key):
 
 def SendMessagePacket(interface, Message=''):
     Window2.ScrollPrint("SendMessagePacket",2)
+
+
+
+    #Change color temporarily
+    SendMessageWindow.TextWindow.attron(curses.color_pair(2))
+    SendMessageWindow.TextWindow.border()
+    SendMessageWindow.TextWindow.attroff(curses.color_pair(2))
+
+    SendMessageWindow.Title = 'Press CTL-G to send'
+    SendMessageWindow.DisplayTitle()
+    SendMessageWindow.TextWindow.refresh()
     
+    #Show cursor
     
+    curses.curs_set(True)
     # Let the user edit until Ctrl-G is struck.
-    SendMessageBox.edit()
-    
+    InputMessageBox.edit()
+    curses.curs_set(False)
+
 
     # Get resulting contents
-    TheMessage = SendMessageBox.gather()
+    TheMessage = InputMessageBox.gather()
     
     #remove last character which seems to be interfering with line printing
     TheMessage = TheMessage[0:-1]
@@ -1014,8 +1044,11 @@ def SendMessagePacket(interface, Message=''):
     Window4.ScrollPrint("========================================================",3)
     Window4.ScrollPrint(" ",2)    
 
-
-
+    SendMessageWindow.Clear()
+    SendMessageWindow.Title = 'Press S to send a message'
+    SendMessageWindow.DisplayTitle()
+    SendMessageWindow.TextWindow.refresh()
+    
     Window3.ScrollPrint("To: All - {}".format(TheMessage),2,TimeStamp=True)
 
 
