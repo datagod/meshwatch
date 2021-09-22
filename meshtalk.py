@@ -476,6 +476,8 @@ def CreateTextWindows():
   global Window5
   global HelpWindow
   global Pad1
+  global SendMessageWindow
+  global SendMessageBox
 
 
   #Colors are numbered, and start_color() initializes 8 
@@ -564,7 +566,15 @@ def CreateTextWindows():
   HelpWindowx2 = HelpWindowx1 + HelpWindowLength
   HelpWindowy2 = HelpWindowy1 + HelpWindowHeight
 
-
+  #SendMessage Window
+  #We won't display the border or title, otherwise the text gather
+  #function will include those characters
+  SendMessageWindowHeight = 4
+  SendMessageWindowLength = 50
+  SendMessageWindowx1 = Window5x2 + 1 + 1
+  SendMessageWindowy1 = HelpWindowy1 + HelpWindowHeight + 1
+  SendMessageWindowx2 = SendMessageWindowx1 + SendMessageWindowLength
+  SendMessageWindowy2 = SendMessageWindowy1 + SendMessageWindowHeight
   
 
   try:
@@ -585,17 +595,18 @@ def CreateTextWindows():
     #--------------------------------------
 
     # Create windows
+                              # name,  rows,      columns,   y1,    x1,    y2,    x2,ShowBorder,BorderColor,TitleColor):
     TitleWindow   = TextWindow('TitleWindow',1,50,0,0,0,50,'N',0,0) 
     StatusWindow  = TextWindow('StatusWindow',1,50,0,51,0,100,'N',0,0) 
     StatusWindow2 = TextWindow('StatusWindow2',1,30,0,101,0,130,'N',0,0) 
     Window1       = TextWindow('Window1',Window1Height,Window1Length,Window1y1,Window1x1,Window1y2,Window1x2,'Y',2,2)
-    Window2       = TextWindow('Window2',Window2Height,Window2Length,Window2y1,Window2x1,Window2y2,Window2x2,'Y',3,3)
-    Window3       = TextWindow('Window3',Window3Height,Window3Length,Window3y1,Window3x1,Window3y2,Window3x2,'Y',4,4)
+    Window2       = TextWindow('Window2',Window2Height,Window2Length,Window2y1,Window2x1,Window2y2,Window2x2,'Y',2,2)
+    Window3       = TextWindow('Window3',Window3Height,Window3Length,Window3y1,Window3x1,Window3y2,Window3x2,'Y',3,3)
     Window4       = TextWindow('Window4',Window4Height,Window4Length,Window4y1,Window4x1,Window4y2,Window4x2,'Y',5,5)
     Window5       = TextWindow('Window5',Window5Height,Window5Length,Window5y1,Window5x1,Window5y2,Window5x2,'Y',6,6)
     HelpWindow    = TextWindow('HelpWindow',HelpWindowHeight,HelpWindowLength,HelpWindowy1,HelpWindowx1,HelpWindowy2,HelpWindowx2,'Y',7,7)
-    Pad1          = TextPad('Pad1', Pad1Lines,Pad1Columns,Pad1y1,Pad1x1,Pad1y2,Pad1x2,'N',5)
-                           # name,  rows,      columns,   y1,    x1,    y2,    x2,ShowBorder,BorderColor):
+    SendMessageWindow = TextWindow('SendMessageWindow',SendMessageWindowHeight,SendMessageWindowLength,SendMessageWindowy1,SendMessageWindowx1,SendMessageWindowy2,SendMessageWindowx2,'N',0,1)
+    Pad1              = TextPad('Pad1', Pad1Lines,Pad1Columns,Pad1y1,Pad1x1,Pad1y2,Pad1x2,'N',5)
 
 
     
@@ -612,11 +623,12 @@ def CreateTextWindows():
     StatusWindow.Title,  StatusWindow.TitleColor  = "",2
     StatusWindow2.Title, StatusWindow2.TitleColor = "",2
     Window1.Title, Window1.TitleColor = "Device Info",2
-    Window2.Title, Window2.TitleColor = "Debug",3
-    Window3.Title, Window3.TitleColor = "Messages",4
+    Window2.Title, Window2.TitleColor = "Debug",2
+    Window3.Title, Window3.TitleColor = "Messages",3
     Window4.Title, Window4.TitleColor = "Packets",5
     Window5.Title, Window5.TitleColor = "Keys",6
     HelpWindow.Title, HelpWindow.TitleColor = "Help",7
+    #SendMessageWindow.Title, HelpWindow.TitleColor = "Send Message",7
     
 
 
@@ -627,10 +639,21 @@ def CreateTextWindows():
     Window4.DisplayTitle()
     Window5.DisplayTitle()
     HelpWindow.DisplayTitle()
-    
+    SendMessageWindow.DisplayTitle()
     
     DisplayHelpInfo() 
     
+    #Prepare edit window for send message
+    SendMessageBox = Textbox(SendMessageWindow.TextWindow)
+    
+
+    #draw a box around the editwindow
+    #Upper left corner coordinates, lower right coordinate
+    rectangle(stdscr, SendMessageWindowy1-1, SendMessageWindowx1-1, SendMessageWindowy2+1, SendMessageWindowx2+1)
+    stdscr.addstr(SendMessageWindowy1-1, SendMessageWindowx1+1, "Enter message: (hit Ctrl-G to send)",curses.color_pair(7))
+    stdscr.refresh()
+
+
 
     
 
@@ -967,31 +990,22 @@ def ProcessKeypress(Key):
 
 def SendMessagePacket(interface, Message=''):
     Window2.ScrollPrint("SendMessagePacket",2)
-    Window4.Clear()
-    stdscr.addstr(38, 4, "Enter message: (hit Ctrl-G to send)")
-
-    # height, length, upper left coordinates (y,x)
-    editwin = curses.newwin(5,30, 40,5)
     
-    #draw a box around the editwindow
-    #Upper left corner coordinates, lower right coordinate
-    rectangle(stdscr, 39, 4, 45, 35)
-    stdscr.refresh()
-
-    box = Textbox(editwin)
-
+    
     # Let the user edit until Ctrl-G is struck.
-    box.edit()
+    SendMessageBox.edit()
+    
 
     # Get resulting contents
-    TheMessage = box.gather()
+    TheMessage = SendMessageBox.gather()
     
     #remove last character which seems to be interfering with line printing
     TheMessage = TheMessage[0:-1]
   
+    #Send the message to the device
     interface.sendText(TheMessage)
 
-    Window4.Clear()
+    
     Window4.ScrollPrint(" ",2)    
     Window4.ScrollPrint("==Packet SENT===========================================",3)
     Window4.ScrollPrint("To:      All:",3)
@@ -1016,7 +1030,6 @@ def GoToSleep(TimeToSleep):
     time.sleep(1)
 
 def ClearAllWindows():
-  time.sleep(2)
   Window1.Clear()
   Window2.Clear()
   Window3.Clear()
@@ -1110,6 +1123,7 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
   #BatteryLevel
   Window1.WindowPrint(y8,x8,"BatteryLevel:    ",2)
   Window1.WindowPrint(y8,x8+17,"{}".format(BatteryLevel),Color)
+
 
 def DisplayHelpInfo():
   HelpWindow.ScrollPrint("C - CLEAR Screen",7)
