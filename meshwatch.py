@@ -42,16 +42,19 @@
 
 
 
+
 import meshtastic
 import time
 from datetime import datetime
 import traceback
 from meshtastic.mesh_pb2 import _HARDWAREMODEL, HardwareModel
+from meshtastic.node import Node
 from pubsub import pub
 import argparse
 import collections
 import sys
 import os
+import math
 
 #to help with debugging
 import inspect
@@ -69,7 +72,7 @@ from sys import exit
 # Variable Declaration                                                       --
 #------------------------------------------------------------------------------
 
-NAME = 'MeshWatch'                   
+NAME = 'MeshTalk'                   
 DESCRIPTION = "Send and recieve messages to a MeshTastic device"
 DEBUG = False
 
@@ -129,7 +132,7 @@ global DevicePort
 global PacketsReceived
 global PacketsSent
 global LastPacketType
-global HardwareModel
+
 global MacAddress
 global DeviceID
 global BatteryLevel
@@ -317,7 +320,6 @@ class TextWindow(object):
 
     Color = 0
     Title = ''
-
        
   
     try:
@@ -342,16 +344,13 @@ class TextWindow(object):
 
 
   def Clear(self):
-    self.TextWindow.clear()
+    self.TextWindow.erase()
     self.TextWindow.attron(curses.color_pair(self.BorderColor))
     self.TextWindow.border()
     self.TextWindow.attroff(curses.color_pair(self.BorderColor))
     self.DisplayTitle()
     
-
-
-
-    self.TextWindow.refresh()
+    #self.TextWindow.refresh()
     if (self.ShowBorder  == 'Y'):
       self.CurrentRow    = 1
       self.StartColumn   = 1
@@ -394,43 +393,38 @@ class TextPad(object):
 
       #expand tabs to X spaces, pad the string with space then truncate
       PrintLine = PrintLine.expandtabs(4)
-      PrintLine = PrintLine.ljust(self.columns,'.')
+      PrintLine = PrintLine.ljust(self.columns,' ')
       
       self.TextPad.attron(curses.color_pair(Color))
       self.TextPad.addstr(PrintLine)
       self.TextPad.attroff(curses.color_pair(Color))
 
       #We will refresh afer a series of calls instead of every update
-      self.TextPad.refresh(0,0,self.y1,self.x1,self.y2,self.x2)
+      self.TextPad.refresh(0,0,self.y1,self.x1,self.y1 + self.rows,self.x1 + self.columns)
 
     except Exception as ErrorMessage:
+      time.sleep(2)
       TraceMessage = traceback.format_exc()
       AdditionalInfo = "PrintLine: " + PrintLine
       ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
         
 
   def Clear(self):
-    self.TextPad.clear()
-    self.TextPad.attron(curses.color_pair(self.BorderColor))
-    self.TextPad.border()
-    self.TextPad.attroff(curses.color_pair(self.BorderColor))
-    self.DisplayTitle()
-    self.TextPad.refresh(0,0,self.y1,self.x1,self.y2,self.x2)
-    if (self.ShowBorder  == 'Y'):
-      self.CurrentRow    = 1
-      self.StartColumn   = 1
-    else:
-      self.CurrentRow   = 0
-      self.StartColumn  = 0
-
-
+    try:
+      self.TextPad.erase()
+      #self.TextPad.noutrefresh(0,0,self.y1,self.x1,self.y1 + self.rows,self.x1 + self.columns)
+      self.TextPad.refresh(0,0,self.y1,self.x1,self.y1 + self.rows,self.x1 + self.columns)
+    except Exception as ErrorMessage:
+      TraceMessage = traceback.format_exc()
+      AdditionalInfo = "erasing textpad"
+      ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
 
 
 
 
 def ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo):
-  Window2.ScrollPrint('ErrorHandler',10,TimeStamp=True)
-  Window4.ScrollPrint('** Just a moment...**',8)
+  #Window2.ScrollPrint('ErrorHandler',10,TimeStamp=True)
+  #Window4.ScrollPrint('** Just a moment...**',8)
   CallingFunction =  inspect.stack()[1][3]
   FinalCleanup(stdscr)
   print("")
@@ -451,9 +445,9 @@ def ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo):
   print("--------------------------------------------------------------")
   print("")
   print("")
-  time.sleep(2)
-  #sys.exit('Good by for now...')
-  exit(0)
+  time.sleep(1)
+  sys.exit('Good by for now...')
+  
 
 
 def FinalCleanup(stdscr):
@@ -526,7 +520,7 @@ def CreateTextWindows():
 
   #Window3 Coordinates (Messages)
   Window3Height = 12
-  Window3Length = 100
+  Window3Length = 104
   Window3x1 = Window2x2 + 1
   Window3y1 = 1
   Window3x2 = Window3x1 + Window3Length
@@ -537,7 +531,7 @@ def CreateTextWindows():
 
 
   #Window4 Coordinates (packet data)
-  Window4Height = 40
+  Window4Height = 45
   #Window4Length = Window1Length + Window2Length + Window3Length + 2
   Window4Length = 70
   Window4x1 = 0
@@ -549,7 +543,7 @@ def CreateTextWindows():
   #We are going to put a window here as a border, but have the pad 
   #displayed inside
   #Window5 Coordinates (to the right of window4)
-  Window5Height = 40
+  Window5Height = 45
   Window5Length = 70
   Window5x1 = Window4x2 + 1
   Window5y1 = Window4y1
@@ -566,7 +560,7 @@ def CreateTextWindows():
 
   #Help Window
   HelpWindowHeight = 10
-  HelpWindowLength = 30
+  HelpWindowLength = 44
   HelpWindowx1 = Window5x2 + 1
   HelpWindowy1 = Window5y1
   HelpWindowx2 = HelpWindowx1 + HelpWindowLength
@@ -576,7 +570,7 @@ def CreateTextWindows():
   #This window will be used to display the border
   #and title and will surround the input window
   SendMessageWindowHeight = 6
-  SendMessageWindowLength = 50
+  SendMessageWindowLength = 44
   SendMessageWindowx1 = Window5x2 + 1 
   SendMessageWindowy1 = HelpWindowy1 + HelpWindowHeight 
   SendMessageWindowx2 = SendMessageWindowx1 + SendMessageWindowLength
@@ -636,14 +630,14 @@ def CreateTextWindows():
     #Window4.ScrollPrint("Details",2)
     
     #each title needs to be initialized or you get errors in scrollprint
-    TitleWindow.Title,   TitleWindow.TitleColor   = "--MeshWatch 1.0--",2
+    TitleWindow.Title,   TitleWindow.TitleColor   = "--MeshTalk 1.0--",2
     StatusWindow.Title,  StatusWindow.TitleColor  = "",2
     StatusWindow2.Title, StatusWindow2.TitleColor = "",2
     Window1.Title, Window1.TitleColor = "Device Info",2
     Window2.Title, Window2.TitleColor = "Debug",2
     Window3.Title, Window3.TitleColor = "Messages",3
-    Window4.Title, Window4.TitleColor = "Packets",5
-    Window5.Title, Window5.TitleColor = "Keys",6
+    Window4.Title, Window4.TitleColor = "Data Packets",5
+    Window5.Title, Window5.TitleColor = "Extended Information",6
     HelpWindow.Title, HelpWindow.TitleColor = "Help",7
     SendMessageWindow.Title, SendMessageWindow.TitleColor = "Press S to send a message",7
     
@@ -698,9 +692,9 @@ def fromStr(valstr):
     elif(valstr.startswith('0x')):
         # if needed convert to string with asBytes.decode('utf-8')
         val = bytes.fromhex(valstr[2:])
-    elif valstr in trueTerms:
+    elif valstr == True:
         val = True
-    elif valstr in falseTerms:
+    elif valstr == False:
         val = False
     else:
         try:
@@ -756,7 +750,6 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   
 
       #Pad1.PadPrint("{} - {}".format(PacketParent,Key),2)
-      Pad1.PadPrint("{} - {}".format(PacketParent,Key),2)
 
       #if the value paired with this key is another dictionary, keep digging
       if isinstance(Value, collections.abc.Mapping):
@@ -809,6 +802,11 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   
   #Window4.ScrollPrint("{}END PACKET: {} ".format(Filler,PacketParent.upper()),2)
   
+
+
+
+
+
   
 
 def onReceive(packet, interface): # called when a packet arrives
@@ -843,7 +841,7 @@ def onReceive(packet, interface): # called when a packet arrives
     
     
 
-    time.sleep(0.25)
+
 
 
 
@@ -855,7 +853,7 @@ def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (
     From = "BaseStation"
     To   = "All"
     current_time = datetime.now().strftime("%H:%M:%S")
-    Message = "MeshWatch active [{}]".format(current_time)
+    Message = "MeshTalk active [{}]".format(current_time)
     Window3.ScrollPrint("From: {} - {}".format(From,Message,To),2,TimeStamp=True)
     
     try:
@@ -883,28 +881,16 @@ def onConnectionLost(interface, topic=pub.AUTO_TOPIC): # called when we (re)conn
 def onNodeUpdated(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
     Window2.ScrollPrint('onNodeUpdated',2,TimeStamp=True)
     Window1.WindowPrint(1,4,'UPDATE RECEIVED',1,TimeStamp=True)
-    
     Window4.ScrollPrint("",2)    
-    Window4.ScrollPrint("==NODE UPDATED =======================================",4)
-
-    try:
-      DecodePacket('Node',packet,Filler='',FillerChar='  ',PrintSleep = PrintSleep)
-
-    except Exception as ErrorMessage:
-      TraceMessage = traceback.format_exc()
-      AdditionalInfo = "Decoding onNodeUpdated packet"
-      ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
-
-
-    Window4.ScrollPrint("=======================================================",4)
 
 
 
 def SIGINT_handler(signal_received, frame):
   # Handle any cleanup here
+  print('WARNING: Somethign bad happened.  SIGINT detected.')
   FinalCleanup(stdscr)  
   print('** END OF LINE')
-  exit(0)
+  sys.exit('Good by for now...')
 
 
 
@@ -953,13 +939,14 @@ def ProcessKeypress(Key):
   global OldPrintSleep 
   count  = 0
 
-  OutputLine = "** KEYPRESS: " + str(Key) + " **"
+  OutputLine = "KEYPRESS: [" + str(Key) + "]"
   Window2.ScrollPrint (OutputLine,5)
   # c = clear screen
   # i = get node info
+  # n = show all nodes in mesh
   # p = pause
   # q = quit
-  # r = restart
+  # r = reboot
   # s = Send message
 
 
@@ -969,7 +956,7 @@ def ProcessKeypress(Key):
     if (PauseOutput == True):
       Window2.ScrollPrint("Pausing output",2)
       StatusWindow.WindowPrint(0,0,"** Output SLOW - press SPACE again to cancel **",1)
-      PrintSleep = 1
+      PrintSleep = PrintSleep * 3
 
     else:
       Window2.ScrollPrint("Resuming output",2)
@@ -985,8 +972,10 @@ def ProcessKeypress(Key):
   elif (Key == "i"):
     Window4.Clear()
     GetMyNodeInfo(interface)
-    time.sleep(3)
-    
+
+  elif (Key == "n"):
+    Pad1.Clear()
+    DisplayNodes(interface)
 
   elif (Key == "q"):
     FinalCleanup(stdscr)
@@ -996,7 +985,7 @@ def ProcessKeypress(Key):
     ClearAllWindows()
 
   elif (Key == "r"):
-    Window2.ScrollPrint('** RESTARTING MESHWATCH **',1)
+    Window2.ScrollPrint('** REBOOTING **',1)
     
     FinalCleanup(stdscr)
     os.execl(sys.executable, sys.executable, *sys.argv)
@@ -1009,28 +998,34 @@ def ProcessKeypress(Key):
 
 def SendMessagePacket(interface, Message=''):
     Window2.ScrollPrint("SendMessagePacket",2)
+    TheMessage=''
 
 
-
+    InputMessageWindow.TextWindow.move(0,0)
     #Change color temporarily
     SendMessageWindow.TextWindow.attron(curses.color_pair(2))
     SendMessageWindow.TextWindow.border()
-    SendMessageWindow.TextWindow.attroff(curses.color_pair(2))
-
+    SendMessageWindow.TitleColor = 2
     SendMessageWindow.Title = 'Press CTL-G to send'
     SendMessageWindow.DisplayTitle()
+
+    SendMessageWindow.TextWindow.attroff(curses.color_pair(2))
+
     SendMessageWindow.TextWindow.refresh()
     
     #Show cursor
     
     curses.curs_set(True)
     # Let the user edit until Ctrl-G is struck.
+    
+    InputMessageWindow.TextWindow.erase()
     InputMessageBox.edit()
     curses.curs_set(False)
 
 
     # Get resulting contents
-    TheMessage = InputMessageBox.gather()
+
+    TheMessage = InputMessageBox.gather().replace("\n", " ")
     
     #remove last character which seems to be interfering with line printing
     TheMessage = TheMessage[0:-1]
@@ -1048,22 +1043,20 @@ def SendMessagePacket(interface, Message=''):
     Window4.ScrollPrint(" ",2)    
 
     SendMessageWindow.Clear()
+    SendMessageWindow.TitleColor = 2
     SendMessageWindow.Title = 'Press S to send a message'
     SendMessageWindow.DisplayTitle()
-    SendMessageWindow.TextWindow.refresh()
+
     
     Window3.ScrollPrint("To: All - {}".format(TheMessage),2,TimeStamp=True)
 
 
 def GoToSleep(TimeToSleep):
   Window2.ScrollPrint("GoToSleep({})".format(TimeToSleep),2,TimeStamp=True)
-  for i in range (0,TimeToSleep):
+  for i in range (0,(TimeToSleep * 10)):
     #Check for keyboard input      --
-    Key = PollKeyboard()
-    if (Key == 's'):
-      SendMessagePacket
-      return
-    time.sleep(1)
+    PollKeyboard()
+    time.sleep(0.1)
 
 def ClearAllWindows():
   Window1.Clear()
@@ -1164,8 +1157,9 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
 def DisplayHelpInfo():
   HelpWindow.ScrollPrint("C - CLEAR Screen",7)
   HelpWindow.ScrollPrint("I - Request node INFO",7)
+  HelpWindow.ScrollPrint("N - Show all NODES",7)
   HelpWindow.ScrollPrint("Q - QUIT program",7)
-  HelpWindow.ScrollPrint("R - RESTART MeshWatch",7)
+  HelpWindow.ScrollPrint("R - RESTART MeshTalk",7)
   HelpWindow.ScrollPrint("S - SEND message",7)
   HelpWindow.ScrollPrint("SPACEBAR - Slow/Fast output",7)
   
@@ -1181,6 +1175,75 @@ def GetMyNodeInfo(interface):
     Window4.ScrollPrint("===============================================",3)
     Window4.ScrollPrint(" ",2)
     
+
+
+def deg2num(lat_deg, lon_deg, zoom):
+  lat_rad = math.radians(lat_deg)
+  n = 2.0 ** zoom
+  xtile = int((lon_deg + 180.0) / 360.0 * n)
+  ytile = int((1.0 - math.asinh(math.tan(lat_rad)) / math.pi) / 2.0 * n)
+  return (xtile, ytile)
+      
+
+def DisplayNodes(interface):
+
+    #experiments
+    #MyNode = meshtastic.Node(interface,1)
+    #TheURL = MyNode.getURL
+    #interface.showInfo()
+    #interface.showNodes()
+    #print (interface.nodes.values())
+    #time.sleep(1)
+    Pad1.Clear()
+    Pad1.PadPrint("--NODES IN MESH------------",3)
+   
+    try:
+
+    # interface.nodes.values() will return a dictionary
+      for node in (interface.nodes.values()):
+        Pad1.PadPrint("NAME: {}".format(node['user']['longName']),3)  
+        Pad1.PadPrint("NODE: {}".format(node['num']),3)  
+        Pad1.PadPrint("ID:   {}".format(node['user']['id']),3)  
+        Pad1.PadPrint("MAC:  {}".format(node['user']['macaddr']),3)  
+        
+
+        if 'position' in node.keys():
+
+          #used to calculate XY for tile servers
+          if 'latitude' in node['position']:
+            Lat = node['position']['latitude']
+            Lon = node['position']['longitude']
+            xtile,ytile = deg2num(Lat,Lon,10)
+            Pad1.PadPrint("Tile: {}/{}".format(xtile,ytile),3) 
+            Pad1.PadPrint("LAT:  {}".format(node['position']['latitude']),3)  
+    
+          if 'longitude' in node['position']:
+            Pad1.PadPrint("LONG: {}".format(node['position']['longitude']),3)  
+
+
+          if 'batteryLevel' in node['position']:
+            Pad1.PadPrint("Battery Level found",3)   
+            Battery = node['position']['batteryLevel']
+            Pad1.PadPrint("Battery:   {}".format(Battery),3)  
+
+        
+        if 'lastHeard' in node.keys():
+          LastHeardDatetime = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(node['lastHeard']))
+          Pad1.PadPrint("LastHeard: {}".format(LastHeardDatetime),3)  
+
+        time.sleep(PrintSleep)
+        Pad1.PadPrint("",3)
+
+
+    except Exception as ErrorMessage:
+      TraceMessage = traceback.format_exc()
+      AdditionalInfo = "Processing node info"
+      ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
+
+    Pad1.PadPrint("---------------------------",3)
+      
+
+
 
 
 
@@ -1217,7 +1280,7 @@ def main(stdscr):
   global DeviceID
   global BatteryLevel
   global PauseOutput
-
+  global HardwareModel
   try:
 
     DeviceName      = '??'
@@ -1232,8 +1295,9 @@ def main(stdscr):
     DeviceID        = ''
     BatteryLevel    = -1
     PauseOutput     = False
+    HardwareModel   = '??'
 
-
+    
     CreateTextWindows()
     Window4.ScrollPrint("System initiated",2)
     
@@ -1241,12 +1305,13 @@ def main(stdscr):
     #Instanciate a meshtastic object
     #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
     Window4.ScrollPrint("Finding Meshtastic device",2)
+    
     interface = meshtastic.SerialInterface()
+
 
     #Get node info for connected device
     Window4.ScrollPrint("Requesting device info",2)
     GetMyNodeInfo(interface)
-
 
 
     #subscribe to connection and receive channels
@@ -1269,7 +1334,7 @@ def main(stdscr):
 
 
     while (1==1):
-      GoToSleep(2)
+      GoToSleep(5)
 
 
     interface.close()  
@@ -1280,6 +1345,7 @@ def main(stdscr):
 
 
   except Exception as ErrorMessage:
+    time.sleep(2)
     TraceMessage = traceback.format_exc()
     AdditionalInfo = "Main function "
     ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
@@ -1292,11 +1358,13 @@ def main(stdscr):
 # Main (pre-amble                    --
 #--------------------------------------
 
+  #if SIGINT or CTL-C detected, run SIGINT_handler to exit gracefully
+  signal(SIGINT, SIGINT_handler)
+
+
 #only execute if we are in main
 if __name__=='__main__':
   try:
-      #if SIGINT or CTL-C detected, run SIGINT_handler to exit gracefully
-      signal(SIGINT, SIGINT_handler)
 
       # Initialize curses
       stdscr=curses.initscr()
@@ -1319,5 +1387,6 @@ if __name__=='__main__':
       TraceMessage = traceback.format_exc()
       AdditionalInfo = "Main pre-amble"
       ErrorHandler(ErrorMessage,TraceMessage,AdditionalInfo)
-      exit()
 
+
+# %%
