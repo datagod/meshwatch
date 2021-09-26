@@ -29,10 +29,24 @@ The top row has basic information messages from the system, a debug area that sh
 Each packet that is intercepted will be displayed here in, decoded.  Some fields such as RAW are not supported yet.  This type of window is using a wrap around function to display the new lines.
 
 
-## Just the keys
-![Just the Keys](https://github.com/datagod/meshtalk/blob/main/pics/meshtalk%20packet%20keys.jpg?raw=true "Packet keys")
+## Extended Info
+![Just the Keys](https://github.com/datagod/meshtalk/blob/main/pics/Meshtalk%20extended%20info.jpg?raw=true "Extended Info")
 
-I wanted to see just a list of the keys for each received package so I list them here.  This is a curses pad, which will keep scrolling as new data arrives.
+This is a curses text pad that scrolls upwards as new lines are entered.  In this example I am displaying the connected nodes in the mesh.
+
+
+## Help
+![Help is here!](https://github.com/datagod/meshtalk/blob/main/pics/Meshtalk%20help%20window%20send%20message.jpg?raw=true "Help")
+
+This is a curses text pad that scrolls upwards as new lines are entered.  In this example I am displaying the connected nodes in the mesh.
+
+## Send Messages
+As per the help instructions, press S to send a message.  Press control+g when finished.
+
+## Viewing Messages
+![Messages](https://github.com/datagod/meshtalk/blob/main/pics/Meshtalk%20help%20window%20send%20message%202.jpg?raw=true "Messages")
+
+As messages are sent or received, they are displayed in the Messages text box.  
 
 
 # Installation
