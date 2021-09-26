@@ -69,12 +69,4 @@ For more information on setting up software to talk to the device, see the follo
 MeshTalk has two modes.
 To receive packets and decode them in a fancy text based display, use the following command:
 
-![How to run](https://github.com/datagod/meshtalk/blob/main/pics/MeshtalkUsage1.jpg?raw=true "Usage")
-
-To send a message: 
-
-![How to run](https://github.com/datagod/meshtalk/blob/main/pics/MeshtalkSendMessage.jpg?raw=true "Usage")
-
-
-
 
