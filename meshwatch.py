@@ -39,10 +39,6 @@
 #------------------------------------------------------------------------------
 
 
-
-
-
-
 import meshtastic
 import time
 from datetime import datetime
