@@ -69,7 +69,7 @@ from sys import exit
 # Variable Declaration                                                       --
 #------------------------------------------------------------------------------
 
-NAME = 'MeshTalk'                   
+NAME = 'MeshWatch'                   
 DESCRIPTION = "Send and recieve messages to a MeshTastic device"
 DEBUG = False
 
@@ -636,7 +636,7 @@ def CreateTextWindows():
     #Window4.ScrollPrint("Details",2)
     
     #each title needs to be initialized or you get errors in scrollprint
-    TitleWindow.Title,   TitleWindow.TitleColor   = "--MeshTalk 1.0--",2
+    TitleWindow.Title,   TitleWindow.TitleColor   = "--MeshWatch 1.0--",2
     StatusWindow.Title,  StatusWindow.TitleColor  = "",2
     StatusWindow2.Title, StatusWindow2.TitleColor = "",2
     Window1.Title, Window1.TitleColor = "Device Info",2
@@ -855,7 +855,7 @@ def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (
     From = "BaseStation"
     To   = "All"
     current_time = datetime.now().strftime("%H:%M:%S")
-    Message = "MeshTalk active [{}]".format(current_time)
+    Message = "MeshWatch active [{}]".format(current_time)
     Window3.ScrollPrint("From: {} - {}".format(From,Message,To),2,TimeStamp=True)
     
     try:
@@ -959,7 +959,7 @@ def ProcessKeypress(Key):
   # i = get node info
   # p = pause
   # q = quit
-  # r = reboot
+  # r = restart
   # s = Send message
 
 
@@ -996,7 +996,7 @@ def ProcessKeypress(Key):
     ClearAllWindows()
 
   elif (Key == "r"):
-    Window2.ScrollPrint('** REBOOTING **',1)
+    Window2.ScrollPrint('** RESTARTING MESHWATCH **',1)
     
     FinalCleanup(stdscr)
     os.execl(sys.executable, sys.executable, *sys.argv)
@@ -1165,7 +1165,7 @@ def DisplayHelpInfo():
   HelpWindow.ScrollPrint("C - CLEAR Screen",7)
   HelpWindow.ScrollPrint("I - Request node INFO",7)
   HelpWindow.ScrollPrint("Q - QUIT program",7)
-  HelpWindow.ScrollPrint("R - RESTART MeshTalk",7)
+  HelpWindow.ScrollPrint("R - RESTART MeshWatch",7)
   HelpWindow.ScrollPrint("S - SEND message",7)
   HelpWindow.ScrollPrint("SPACEBAR - Slow/Fast output",7)
   
