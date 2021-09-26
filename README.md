@@ -1,8 +1,11 @@
 ![TheDevice](https://github.com/datagod/meshtalk/blob/main/pics/Meshtastic%20device%20raspberry%20pi.jpg?raw=true "Top Row")
 
 
-# MeshTalk
-MeshTalk is a python3 program that will allow you to send and receive messages from python. The messages are decoded and displayed in a text based interface created with Curses.
+# Project: RENAMED
+The MeshTalk name is already used, and since this program does so much more I decided now is the time to change the name.
+
+# MeshWatch
+MeshWatch is a python3 program that will allow you to send and receive messages from python. The messages are decoded and displayed in a text based interface created with Curses.
 
 I built this project with the goal of learning about the Meshtastic API and to get used to using new development tools such as Visual Studio Code and GitHub.
 
@@ -55,7 +58,7 @@ As messages are sent or received, they are displayed in the Messages text box.
 Make sure to follow the guide here to install the tools needed to connect to the Meshtastic device using Python.
 https://meshtastic.org/docs/software/python/python-installation
 
-## MeshTalk
+## MeshWatch
 
 ![Install](https://github.com/datagod/meshtalk/blob/main/pics/MeshtalkInstall.jpg?raw=true "Install")
 
@@ -66,7 +69,6 @@ For more information on setting up software to talk to the device, see the follo
 
 
 # Usage
-MeshTalk has two modes.
 To receive packets and decode them in a fancy text based display, use the following command:
 
 ![Run](https://github.com/datagod/meshtalk/blob/main/pics/MeshtalkHowToRun.jpg?raw=true "How to run")
