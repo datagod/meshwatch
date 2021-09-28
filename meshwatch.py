@@ -43,7 +43,7 @@ import meshtastic
 import time
 from datetime import datetime
 import traceback
-from meshtastic.mesh_pb2 import _HARDWAREMODEL, HardwareModel
+from meshtastic.mesh_pb2 import _HARDWAREMODEL
 from meshtastic.node import Node
 from pubsub import pub
 import argparse
@@ -395,7 +395,7 @@ class TextPad(object):
       self.TextPad.addstr(PrintLine)
       self.TextPad.attroff(curses.color_pair(Color))
 
-      #We will refresh afer a series of calls instead of every update
+      #We will refresh after a series of calls instead of every update
       self.TextPad.refresh(0,0,self.y1,self.x1,self.y1 + self.rows,self.x1 + self.columns)
 
     except Exception as ErrorMessage:
