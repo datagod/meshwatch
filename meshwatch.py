@@ -137,6 +137,7 @@ global MacAddress
 global DeviceID
 global BatteryLevel
 global PauseOutput
+global PriorityOutput
 
 PrintSleep    = 0.1
 OldPrintSleep = PrintSleep
@@ -845,6 +846,10 @@ def onReceive(packet, interface): # called when a packet arrives
 
 
 def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
+  global PriorityOutput
+
+  if(PriorityOutput == False):
+
     #Window2.ScrollPrint('onConnectionEstablished',2,TimeStamp=True)
     #Window1.WindowPrint(1,1,"Status: CONNECTED",2)
     UpdateStatusWindow(NewDeviceStatus = "CONNECTED",Color=2)
@@ -873,11 +878,15 @@ def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (
 
 
 def onConnectionLost(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
+  global PriorityOutput
+  if(PriorityOutput == False):
     Window2.ScrollPrint('onConnectionLost',2,TimeStamp=True)
     UpdateStatusWindow(NewDeviceStatus = "DISCONNECTED",Color=1)
 
 
 def onNodeUpdated(interface, topic=pub.AUTO_TOPIC): # called when we (re)connect to the radio
+  global PriorityOutput
+  if(PriorityOutput == False):
     Window2.ScrollPrint('onNodeUpdated',2,TimeStamp=True)
     Window1.WindowPrint(1,4,'UPDATE RECEIVED',1,TimeStamp=True)
     Window4.ScrollPrint("",2)    
@@ -934,6 +943,7 @@ def ProcessKeypress(Key):
   global Window4
   global interface
   global PauseOutput
+  global PriorityOutput
   global PrintSleep 
   global OldPrintSleep 
   count  = 0
@@ -1202,6 +1212,9 @@ def DisplayNodes(interface):
     Pad1.Clear()
     Pad1.PadPrint("--NODES IN MESH------------",3)
    
+    if (PriorityOutput == True):
+      time.sleep(5)
+
     try:
 
     # interface.nodes.values() will return a dictionary
@@ -1287,15 +1300,23 @@ def tail(f, n):
 
 
 def DisplayLogs(ScrollSleep):
+  global PriorityOutput
+
+  #we want to stop all other output to prevent text being written to other windows 
+  PriorityOutput = True
+  Window2.ScrollPrint("PriorityOutput: activated")
+
   with open("/var/log/syslog") as f:
-  
-    f = tail(f,20)
+   
+    f = tail(f,50)
     
     for line in f:
       Pad1.PadPrint(line,3)
       time.sleep(ScrollSleep)
       PollKeyboard()
 
+  PriorityOutput = False
+  Window2.ScrollPrint("PriorityOutput: deactivated")
       
  
 
@@ -1336,7 +1357,12 @@ def main(stdscr):
   global BatteryLevel
   global PauseOutput
   global HardwareModel
+  global PriorityOutput
+
   try:
+
+
+
 
     DeviceName      = '??'
     DeviceStatus    = '??'
@@ -1351,10 +1377,12 @@ def main(stdscr):
     BatteryLevel    = -1
     PauseOutput     = False
     HardwareModel   = '??'
+    PriorityOutput  = False
 
     
     CreateTextWindows()
     Window4.ScrollPrint("System initiated",2)
+    Window2.ScrollPrint("Priorityoutput: {}".format(PriorityOutput),1)
     
     
     #Instanciate a meshtastic object
