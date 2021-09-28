@@ -9,7 +9,7 @@
 #                                                                            --
 #------------------------------------------------------------------------------
 # Author: William McEvoy                                                     --
-# Created: Sept 8 2021                                                       --
+# Created: Sept 8 `2`021                                                       --
 #                                                                            --
 # Purpose:  Send and receive messages from a Mesthtastic device.             --
 #                                                                            --
@@ -54,6 +54,10 @@ import math
 
 #to help with debugging
 import inspect
+
+#to review logfiles
+import subprocess
+
 
 #For capturing keypresses and drawing text boxes
 import curses
@@ -508,7 +512,7 @@ def CreateTextWindows():
 
   #Window2 Coordinates (small debug window)
   Window2Height = 12
-  Window2Length = 40
+  Window2Length = 46
   Window2x1 = Window1x2 + 1
   Window2y1 = 1
   Window2x2 = Window2x1 + Window2Length
@@ -529,7 +533,7 @@ def CreateTextWindows():
   #Window4 Coordinates (packet data)
   Window4Height = 45
   #Window4Length = Window1Length + Window2Length + Window3Length + 2
-  Window4Length = 70
+  Window4Length = 60
   Window4x1 = 0
   Window4y1 = Window1y2 
   Window4x2 = Window4x1 + Window4Length
@@ -540,7 +544,7 @@ def CreateTextWindows():
   #displayed inside
   #Window5 Coordinates (to the right of window4)
   Window5Height = 45
-  Window5Length = 70
+  Window5Length = 95
   Window5x1 = Window4x2 + 1
   Window5y1 = Window4y1
   Window5x2 = Window5x1 + Window5Length
@@ -556,7 +560,7 @@ def CreateTextWindows():
 
   #Help Window
   HelpWindowHeight = 10
-  HelpWindowLength = 44
+  HelpWindowLength = 35
   HelpWindowx1 = Window5x2 + 1
   HelpWindowy1 = Window5y1
   HelpWindowx2 = HelpWindowx1 + HelpWindowLength
@@ -566,7 +570,7 @@ def CreateTextWindows():
   #This window will be used to display the border
   #and title and will surround the input window
   SendMessageWindowHeight = 6
-  SendMessageWindowLength = 44
+  SendMessageWindowLength = 35
   SendMessageWindowx1 = Window5x2 + 1 
   SendMessageWindowy1 = HelpWindowy1 + HelpWindowHeight 
   SendMessageWindowx2 = SendMessageWindowx1 + SendMessageWindowLength
@@ -814,7 +818,7 @@ def onReceive(packet, interface): # called when a packet arrives
 
     Window2.ScrollPrint("onReceive",2,TimeStamp=True)
     Window4.ScrollPrint(" ",2)    
-    Window4.ScrollPrint("==Packet RECEIVED=================================================",2)
+    Window4.ScrollPrint("==Packet RECEIVED======================================",2)
 
     Decoded  = packet.get('decoded')
     Message  = Decoded.get('text')
@@ -826,7 +830,7 @@ def onReceive(packet, interface): # called when a packet arrives
 
     if(Message):
       Window3.ScrollPrint("From: {} - {}".format(From,Message),2,TimeStamp=True)
-    Window4.ScrollPrint("=================================================================",2)
+    Window4.ScrollPrint("=======================================================",2)
     Window4.ScrollPrint(" ",2)    
 
     #example of scrolling the window
@@ -836,7 +840,6 @@ def onReceive(packet, interface): # called when a packet arrives
     #Window4.TextWindow.scrollok(0)
     
     
-
 
 
 
@@ -853,13 +856,13 @@ def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (
     Window3.ScrollPrint("From: {} - {}".format(From,Message,To),2,TimeStamp=True)
     
     try:
-      interface.sendText(Message)
+      interface.sendText(Message, wantAck=True)
       Window4.ScrollPrint("",2)    
-      Window4.ScrollPrint("==Packet SENT=====================================================",3)
+      Window4.ScrollPrint("==Packet SENT==========================================",3)
       Window4.ScrollPrint("To:     {}:".format(To),3)
       Window4.ScrollPrint("From    {}:".format(From),3)
       Window4.ScrollPrint("Message {}:".format(Message),3)
-      Window4.ScrollPrint("==================================================================",3)
+      Window4.ScrollPrint("=======================================================",3)
       Window4.ScrollPrint("",2)    
 
     except Exception as ErrorMessage:
@@ -939,12 +942,13 @@ def ProcessKeypress(Key):
   Window2.ScrollPrint (OutputLine,5)
   # c = clear screen
   # i = get node info
+  # l = show system LOGS (dmesg)
   # n = show all nodes in mesh
   # p = pause
   # q = quit
   # r = reboot
   # s = Send message
-
+  
 
     
   if (Key == "p" or Key == " "):
@@ -968,6 +972,10 @@ def ProcessKeypress(Key):
   elif (Key == "i"):
     Window4.Clear()
     GetMyNodeInfo(interface)
+
+  elif (Key == "l"):
+    Pad1.Clear()
+    DisplayLogs(0.01)
 
   elif (Key == "n"):
     Pad1.Clear()
@@ -1027,15 +1035,15 @@ def SendMessagePacket(interface, Message=''):
     TheMessage = TheMessage[0:-1]
   
     #Send the message to the device
-    interface.sendText(TheMessage)
+    interface.sendText(TheMessage, wantAck=True)
 
     
     Window4.ScrollPrint(" ",2)    
-    Window4.ScrollPrint("==Packet SENT===========================================",3)
+    Window4.ScrollPrint("==Packet SENT==========================================",3)
     Window4.ScrollPrint("To:      All:",3)
     Window4.ScrollPrint("From:    BaseStation",3)
     Window4.ScrollPrint("Message: {}".format(TheMessage),3)
-    Window4.ScrollPrint("========================================================",3)
+    Window4.ScrollPrint("=======================================================",3)
     Window4.ScrollPrint(" ",2)    
 
     SendMessageWindow.Clear()
@@ -1153,6 +1161,7 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
 def DisplayHelpInfo():
   HelpWindow.ScrollPrint("C - CLEAR Screen",7)
   HelpWindow.ScrollPrint("I - Request node INFO",7)
+  HelpWindow.ScrollPrint("L - Show SYSLOGS",7)
   HelpWindow.ScrollPrint("N - Show all NODES",7)
   HelpWindow.ScrollPrint("Q - QUIT program",7)
   HelpWindow.ScrollPrint("R - RESTART MeshWatch",7)
@@ -1239,6 +1248,56 @@ def DisplayNodes(interface):
     Pad1.PadPrint("---------------------------",3)
       
 
+def exec_process(cmdline, silent, input=None, **kwargs):
+    """Execute a subprocess and returns the returncode, stdout buffer and stderr buffer.
+       Optionally prints stdout and stderr while running."""
+    try:
+        sub = subprocess.Popen(cmdline, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, **kwargs)
+        stdout, stderr = sub.communicate(input=input)
+        returncode = sub.returncode
+        if not silent:
+            sys.stdout.write(stdout)
+            sys.stderr.write(stderr)
+    except OSError as e:
+        if e.errno == 2:
+            raise RuntimeError('"%s" is not present on this system' % cmdline[0])
+        else:
+            raise
+    if returncode != 0:
+        raise RuntimeError('Got return value %d while executing "%s", stderr output was:\n%s' % (returncode, " ".join(cmdline), stderr.rstrip("\n")))
+    return stdout
+
+
+
+def tail(f, n):
+    assert n >= 0
+    pos, lines = n+1, []
+    while len(lines) <= n:
+        try:
+            f.seek(-pos, 2)
+        except IOError:
+            f.seek(0)
+            break
+        finally:
+            lines = list(f)
+        pos *= 2
+    return lines[-n:]
+
+
+
+
+def DisplayLogs(ScrollSleep):
+  with open("/var/log/syslog") as f:
+  
+    f = tail(f,20)
+    
+    for line in f:
+      Pad1.PadPrint(line,3)
+      time.sleep(ScrollSleep)
+      PollKeyboard()
+
+      
+ 
 
 
 
@@ -1305,21 +1364,24 @@ def main(stdscr):
     interface = meshtastic.SerialInterface()
 
 
+
+    #subscribe to connection and receive channels
+    Window4.ScrollPrint("Subscribe to publications",2)
+    pub.subscribe(onConnectionEstablished, "meshtastic.connection.established")
+    pub.subscribe(onConnectionLost,        "meshtastic.connection.lost")
+    
+    #does not seem to work
+    #pub.subscribe(onNodeUpdated,           "meshtastic.node.updated")
+    time.sleep(2)
     #Get node info for connected device
     Window4.ScrollPrint("Requesting device info",2)
     GetMyNodeInfo(interface)
 
 
-    #subscribe to connection and receive channels
-    pub.subscribe(onConnectionEstablished, "meshtastic.connection.established")
-    pub.subscribe(onConnectionLost,        "meshtastic.connection.lost")
-    pub.subscribe(onNodeUpdated,           "meshtastic.node.updated")
-
-
 
     #Check for message to be sent (command line option)
     if(SendMessage):
-       interface.sendText(TheMessage)
+       interface.sendText(TheMessage, wantAck=True)
 
    
 
