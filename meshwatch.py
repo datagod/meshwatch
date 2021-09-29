@@ -1171,7 +1171,7 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
 def DisplayHelpInfo():
   HelpWindow.ScrollPrint("C - CLEAR Screen",7)
   HelpWindow.ScrollPrint("I - Request node INFO",7)
-  HelpWindow.ScrollPrint("L - Show SYSLOGS",7)
+  HelpWindow.ScrollPrint("L - Show LOGS",7)
   HelpWindow.ScrollPrint("N - Show all NODES",7)
   HelpWindow.ScrollPrint("Q - QUIT program",7)
   HelpWindow.ScrollPrint("R - RESTART MeshWatch",7)
@@ -1306,7 +1306,7 @@ def DisplayLogs(ScrollSleep):
   PriorityOutput = True
   Window2.ScrollPrint("PriorityOutput: activated")
 
-  with open("/var/log/syslog") as f:
+  with open("/var/log/kern.log") as f:
    
     f = tail(f,50)
     
