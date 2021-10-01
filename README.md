@@ -70,7 +70,7 @@ https://pypi.org/project/geopy/
 pip3 install geopy
 ~~~
 
-## Connect to Device
+# Connect to Device
 Connect your Raspberry Pi to the Meshtastic device via USB cable.
 For more information on setting up software to talk to the device, see the following:
 
