@@ -62,11 +62,11 @@ https://meshtastic.org/docs/software/python/python-installation
 
 ![Install](https://github.com/datagod/meshtalk/blob/main/pics/MeshtalkInstall.jpg?raw=true "Install")
 
-## GeoPi
-We use a function from the python-geoip module to calculate distance between nodes.
-https://pythonhosted.org/python-geoip/
+## GeoPy
+We use a function from the GeoPy module to calculate distance between nodes.
+https://pypi.org/project/geopy/
 ~~~
-pip3 install python-geoip
+pip3 install geopy
 ~~~
 
 ## Connect to Device
