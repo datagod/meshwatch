@@ -58,6 +58,11 @@ import inspect
 #to review logfiles
 import subprocess
 
+#for calculting distance
+import geopy.distance
+
+
+
 
 #For capturing keypresses and drawing text boxes
 import curses
@@ -138,6 +143,9 @@ global DeviceID
 global BatteryLevel
 global PauseOutput
 global PriorityOutput
+global BaseLat
+global BaseLon
+
 
 PrintSleep    = 0.1
 OldPrintSleep = PrintSleep
@@ -737,6 +745,9 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   #adjust the input to slow down the output for that cool retro feel
   if (PrintSleep > 0):
     time.sleep(PrintSleep)
+
+  if PriorityOutput == True:
+    time.sleep(5)
   
 
   #if the packet is a dictionary, decode it
@@ -765,31 +776,6 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
 
 
       else:
-
-        if(Key == 'longName'):
-          DeviceName = Value
-          UpdateStatusWindow(NewDeviceName=DeviceName,Color=2)
-
-        elif(Key == 'portnum'):
-          DevicePort = Value
-          UpdateStatusWindow(NewDevicePort=DevicePort,Color=2)
-        
-        elif(Key == 'hwModel'):
-          HardwareModel = Value
-          UpdateStatusWindow(NewHardwareModel=HardwareModel,Color=2)
-
-        elif(Key == 'macaddr'):
-          MacAddress = Value
-          UpdateStatusWindow(NewMacAddress=MacAddress,Color=2)
-
-        elif(Key == 'id' and PacketParent == 'MYNODE/USER'):
-          DeviceID = Value
-          UpdateStatusWindow(NewDeviceID=DeviceID,Color=2)
-
-        elif(Key == 'batteryLevel'):
-          BatteryLevel = Value
-          UpdateStatusWindow(NewBatteryLevel=BatteryLevel,Color=2)
-
         #Print KEY if not RAW (gotta decode those further, or ignore)
         if(Key == 'raw'):
           Window4.ScrollPrint("{}  RAW value not yet suported by DecodePacket function".format(Filler),2)
@@ -857,7 +843,7 @@ def onConnectionEstablished(interface, topic=pub.AUTO_TOPIC): # called when we (
     From = "BaseStation"
     To   = "All"
     current_time = datetime.now().strftime("%H:%M:%S")
-    Message = "MeshWatch active [{}]".format(current_time)
+    Message = "MeshWatch active,  please respond. [{}]".format(current_time)
     Window3.ScrollPrint("From: {} - {}".format(From,Message,To),2,TimeStamp=True)
     
     try:
@@ -1089,6 +1075,8 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
                        NewMacAddress    = '',
                        NewDeviceID      = '',
                        NewBatteryLevel  = -1,
+                       Lat              = 0,
+                       Lon              = 0,
                        Color=2
     ):
   #Window2.ScrollPrint("UpdateStatusWindow",2,TimeStamp=True)
@@ -1103,6 +1091,9 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
   global MacAddress
   global DeviceID
   global BatteryLevel
+  global BaseLat
+  global BaseLon
+
 
   x1,y1 = 1,1    #DeviceName
   x2,y2 = 1,2    #HardwareModel
@@ -1112,6 +1103,8 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
   x6,y6 = 1,6    #PacketsDecoded
   x7,y7 = 1,7    #LastPacketType
   x8,y8 = 1,8    #BatteryLevel
+  x9,y9 = 1,9    #BaseLat
+  x10,y10 = 1,10 #BaseLon
 
   if(NewDeviceName != ''):
     DeviceName = NewDeviceName
@@ -1133,6 +1126,13 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
 
   if(NewBatteryLevel >-1):
    BatteryLevel = NewBatteryLevel
+
+  if(Lat != ''):
+   BaseLat = Lat
+
+  if(Lon != ''):
+   BaseLon = Lon
+
 
 
   #DeviceName
@@ -1168,6 +1168,17 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
   Window1.WindowPrint(y8,x8+17,"{}".format(BatteryLevel),Color)
 
 
+  #Base LAT
+  Window1.WindowPrint(y9,x9,"Base LAT:    ",2)
+  Window1.WindowPrint(y9,x9+17,"{}".format(BaseLat),Color)
+
+
+  #Base LON
+  Window1.WindowPrint(y10,x10,"Base LON:    ",2)
+  Window1.WindowPrint(y10,x10+17,"{}".format(BaseLon),Color)
+
+
+
 def DisplayHelpInfo():
   HelpWindow.ScrollPrint("C - CLEAR Screen",7)
   HelpWindow.ScrollPrint("I - Request node INFO",7)
@@ -1183,13 +1194,42 @@ def DisplayHelpInfo():
 
 def GetMyNodeInfo(interface):
 
+    global BaseLat
+    global BaseLon
+
+    Distance = 0
+    DeviceName = ''
+
     Window4.ScrollPrint(" ",2)
     Window4.ScrollPrint("==MyNodeInfo===================================",3)
     TheNode = interface.getMyNodeInfo()
     DecodePacket('MYNODE',TheNode,'','',PrintSleep =PrintSleep)
     Window4.ScrollPrint("===============================================",3)
     Window4.ScrollPrint(" ",2)
+
+    if 'latitude' in TheNode['position'] and 'longitude' in TheNode['position']:
+      BaseLat = TheNode['position']['latitude']
+      BaseLon = TheNode['position']['longitude']
+      UpdateStatusWindow(Lon=BaseLat,Color=2)
+      UpdateStatusWindow(Lat=BaseLon,Color=2)
+
+
+    if 'longName' in TheNode['user']:
+      UpdateStatusWindow(NewDeviceName=TheNode['user']['longName'],Color=2)
+
+    if 'hwModel' in TheNode['user']:
+      UpdateStatusWindow(NewHardwareModel=TheNode['user']['hwModel'],Color=2)
     
+
+    if 'macaddr' in TheNode['user']:
+      UpdateStatusWindow(NewMacAddress=TheNode['user']['macaddr'],Color=2)
+
+    if 'id' in TheNode['user']:
+      UpdateStatusWindow(NewDeviceID=TheNode['user']['id'],Color=2)
+
+    if 'battery' in TheNode['position']:
+      UpdateStatusWindow(New=TheNode[''][''],Color=2)
+
 
 
 def deg2num(lat_deg, lon_deg, zoom):
@@ -1201,6 +1241,8 @@ def deg2num(lat_deg, lon_deg, zoom):
       
 
 def DisplayNodes(interface):
+    global BaseLat
+    global BaseLon
 
     #experiments
     #MyNode = meshtastic.Node(interface,1)
@@ -1228,16 +1270,18 @@ def DisplayNodes(interface):
         if 'position' in node.keys():
 
           #used to calculate XY for tile servers
-          if 'latitude' in node['position']:
+          if 'latitude' in node['position'] and 'longitude' in node['position']:
             Lat = node['position']['latitude']
             Lon = node['position']['longitude']
+
             xtile,ytile = deg2num(Lat,Lon,10)
             Pad1.PadPrint("Tile: {}/{}".format(xtile,ytile),3) 
             Pad1.PadPrint("LAT:  {}".format(node['position']['latitude']),3)  
-    
-          if 'longitude' in node['position']:
             Pad1.PadPrint("LONG: {}".format(node['position']['longitude']),3)  
+            Distance = geopy.distance.geodesic((Lat,Lon), (BaseLat, BaseLon)).km
 
+          
+          
 
           if 'batteryLevel' in node['position']:
             Pad1.PadPrint("Battery Level found",3)   
@@ -1358,6 +1402,8 @@ def main(stdscr):
   global PauseOutput
   global HardwareModel
   global PriorityOutput
+  global BaseLat
+  global BaseLon
 
   try:
 
@@ -1377,7 +1423,9 @@ def main(stdscr):
     BatteryLevel    = -1
     PauseOutput     = False
     HardwareModel   = '??'
-    PriorityOutput  = False
+    PriorityOutput  = False,
+    BaseLat         = 0
+    BaseLon         = 0
 
     
     CreateTextWindows()
