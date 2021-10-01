@@ -62,6 +62,13 @@ https://meshtastic.org/docs/software/python/python-installation
 
 ![Install](https://github.com/datagod/meshtalk/blob/main/pics/MeshtalkInstall.jpg?raw=true "Install")
 
+## GeoPi
+We use a function from the python-geoip module to calculate distance between nodes.
+https://pythonhosted.org/python-geoip/
+~~~
+pip3 install python-geoip
+~~~
+
 ## Connect to Device
 Connect your Raspberry Pi to the Meshtastic device via USB cable.
 For more information on setting up software to talk to the device, see the following:
