@@ -64,6 +64,7 @@ https://meshtastic.org/docs/software/python/python-installation
 
 ## GeoPy
 We use a function from the GeoPy module to calculate distance between nodes.
+
 https://pypi.org/project/geopy/
 ~~~
 pip3 install geopy
