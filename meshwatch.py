@@ -9,7 +9,7 @@
 #                                                                            --
 #------------------------------------------------------------------------------
 # Author: William McEvoy                                                     --
-# Created: Sept 8 `2`021                                                       --
+# Created: Sept 8 2021                                                       --
 #                                                                            --
 # Purpose:  Send and receive messages from a Mesthtastic device.             --
 #                                                                            --
@@ -28,9 +28,14 @@
 #  Sept 26, 2021                                                             --
 #   - renamed project to MeshWatch                                           --
 #------------------------------------------------------------------------------
+#  Oct 01, 2021                                                              --
+#   - Added option to send X messages every Y seconds to all nodes for       --
+#     tesing the mesh network                                                --
+#   - node information now includes distance in meteres from basestation     --
+#------------------------------------------------------------------------------
 #                                                                            --
 # Credit to other projects:                                                  --
-# 
+#                                                                            --
 #  Intercepting SIGINT and CTL-C in Curses                                   --
 #  - https://gnosis.cx/publish/programming/charming_python_6.html            --
 #                                                                            --
@@ -137,14 +142,14 @@ global DevicePort
 global PacketsReceived
 global PacketsSent
 global LastPacketType
+global BaseLat
+global BaseLon
 
 global MacAddress
 global DeviceID
-global BatteryLevel
+
 global PauseOutput
 global PriorityOutput
-global BaseLat
-global BaseLon
 
 
 PrintSleep    = 0.1
@@ -568,7 +573,7 @@ def CreateTextWindows():
   Pad1y2 = Window5y2 -1
 
   #Help Window
-  HelpWindowHeight = 10
+  HelpWindowHeight = 11
   HelpWindowLength = 35
   HelpWindowx1 = Window5x2 + 1
   HelpWindowy1 = Window5y1
@@ -727,7 +732,7 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
   global LastPacketType
   global HardwareModel
   global DeviceID 
-  global BatteryLevl
+  
 
 
   #This is a recursive funtion that will decode a packet (get key/value pairs from a dictionary )
@@ -740,7 +745,7 @@ def DecodePacket(PacketParent,Packet,Filler,FillerChar,PrintSleep=0):
     Filler = Filler + FillerChar
  
   Window4.ScrollPrint("{}".format(PacketParent).upper(),2)
-
+  UpdateStatusWindow(NewLastPacketType=PacketParent)
 
   #adjust the input to slow down the output for that cool retro feel
   if (PrintSleep > 0):
@@ -944,6 +949,7 @@ def ProcessKeypress(Key):
   # q = quit
   # r = reboot
   # s = Send message
+  # T = test messages
   
 
     
@@ -993,6 +999,8 @@ def ProcessKeypress(Key):
   elif (Key == "s"):
     SendMessagePacket(interface)
 
+  elif (Key == "t"):
+    TestMesh(interface,5,10)
 
 
 
@@ -1075,8 +1083,9 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
                        NewMacAddress    = '',
                        NewDeviceID      = '',
                        NewBatteryLevel  = -1,
-                       Lat              = 0,
-                       Lon              = 0,
+                       NewLastPacketType = '',
+                       NewLat            = 0,
+                       NewLon            = 0,
                        Color=2
     ):
   #Window2.ScrollPrint("UpdateStatusWindow",2,TimeStamp=True)
@@ -1090,10 +1099,10 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
   global HardwareModel
   global MacAddress
   global DeviceID
-  global BatteryLevel
   global BaseLat
   global BaseLon
 
+  BatteryLevel = -1
 
   x1,y1 = 1,1    #DeviceName
   x2,y2 = 1,2    #HardwareModel
@@ -1115,6 +1124,10 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
   if(NewDevicePort != ''):
     DevicePort = NewDevicePort
 
+  if(NewLastPacketType != ''):
+    LastPacketType = NewLastPacketType
+
+
   if(NewHardwareModel != ''):
     HardwareModel = NewHardwareModel
 
@@ -1127,11 +1140,11 @@ def UpdateStatusWindow(NewDeviceStatus  = '',
   if(NewBatteryLevel >-1):
    BatteryLevel = NewBatteryLevel
 
-  if(Lat != ''):
-   BaseLat = Lat
+  if(NewLat != 0):
+   BaseLat = NewLat
 
-  if(Lon != ''):
-   BaseLon = Lon
+  if(NewLon != 0):
+   BaseLon = NewLon
 
 
 
@@ -1187,6 +1200,7 @@ def DisplayHelpInfo():
   HelpWindow.ScrollPrint("Q - QUIT program",7)
   HelpWindow.ScrollPrint("R - RESTART MeshWatch",7)
   HelpWindow.ScrollPrint("S - SEND message",7)
+  HelpWindow.ScrollPrint("T - TEST mesh network",7)
   HelpWindow.ScrollPrint("SPACEBAR - Slow/Fast output",7)
   
   
@@ -1194,11 +1208,11 @@ def DisplayHelpInfo():
 
 def GetMyNodeInfo(interface):
 
-    global BaseLat
-    global BaseLon
 
-    Distance = 0
+    Distance   = 0
     DeviceName = ''
+    BaseLat    = 0
+    BaseLon    = 0
 
     Window4.ScrollPrint(" ",2)
     Window4.ScrollPrint("==MyNodeInfo===================================",3)
@@ -1210,9 +1224,7 @@ def GetMyNodeInfo(interface):
     if 'latitude' in TheNode['position'] and 'longitude' in TheNode['position']:
       BaseLat = TheNode['position']['latitude']
       BaseLon = TheNode['position']['longitude']
-      UpdateStatusWindow(Lon=BaseLat,Color=2)
-      UpdateStatusWindow(Lat=BaseLon,Color=2)
-
+      UpdateStatusWindow(NewLon=BaseLon,NewLat=BaseLat,Color=2)
 
     if 'longName' in TheNode['user']:
       UpdateStatusWindow(NewDeviceName=TheNode['user']['longName'],Color=2)
@@ -1227,8 +1239,8 @@ def GetMyNodeInfo(interface):
     if 'id' in TheNode['user']:
       UpdateStatusWindow(NewDeviceID=TheNode['user']['id'],Color=2)
 
-    if 'battery' in TheNode['position']:
-      UpdateStatusWindow(New=TheNode[''][''],Color=2)
+    if 'batteryLevel' in TheNode['position']:
+      UpdateStatusWindow(NewBatteryLevel=TheNode['position']['batteryLevel'],Color=2)
 
 
 
@@ -1241,8 +1253,6 @@ def deg2num(lat_deg, lon_deg, zoom):
       
 
 def DisplayNodes(interface):
-    global BaseLat
-    global BaseLon
 
     #experiments
     #MyNode = meshtastic.Node(interface,1)
@@ -1278,13 +1288,13 @@ def DisplayNodes(interface):
             Pad1.PadPrint("Tile: {}/{}".format(xtile,ytile),3) 
             Pad1.PadPrint("LAT:  {}".format(node['position']['latitude']),3)  
             Pad1.PadPrint("LONG: {}".format(node['position']['longitude']),3)  
-            Distance = geopy.distance.geodesic((Lat,Lon), (BaseLat, BaseLon)).km
+            Distance = geopy.distance.geodesic((Lat,Lon), (BaseLat, BaseLon)).m
+            Pad1.PadPrint("Distance: {:.3f} m".format(Distance),3)  
 
           
           
 
           if 'batteryLevel' in node['position']:
-            Pad1.PadPrint("Battery Level found",3)   
             Battery = node['position']['batteryLevel']
             Pad1.PadPrint("Battery:   {}".format(Battery),3)  
 
@@ -1363,6 +1373,39 @@ def DisplayLogs(ScrollSleep):
   Window2.ScrollPrint("PriorityOutput: deactivated")
       
  
+def TestMesh(interface, MessageCount=10,Sleep=10):
+    Window2.ScrollPrint("TestMesh",2)
+    
+    
+    for i in range (1,MessageCount+1):
+    
+      TheMessage=''
+      current_time = datetime.now().strftime("%H:%M:%S")
+      TheMessage = "This is Base station.  Message: {} Date: {}".format(i,current_time)
+
+              
+      
+      #Send the message to the device
+      interface.sendText(TheMessage, wantAck=True)
+
+      
+      Window4.ScrollPrint(" ",2)    
+      Window4.ScrollPrint("==Packet SENT==========================================",3)
+      Window4.ScrollPrint("To:      All:",3)
+      Window4.ScrollPrint("From:    BaseStation",3)
+      Window4.ScrollPrint("Message: {}".format(TheMessage),3)
+      Window4.ScrollPrint("=======================================================",3)
+      Window4.ScrollPrint(" ",2)    
+
+      SendMessageWindow.Clear()
+      SendMessageWindow.TitleColor = 2
+      SendMessageWindow.Title = 'Press S to send a message'
+      SendMessageWindow.DisplayTitle()
+      
+      Window3.ScrollPrint("To: All - {}".format(TheMessage),2,TimeStamp=True)
+
+      GoToSleep(Sleep)
+
 
 
 
@@ -1398,7 +1441,6 @@ def main(stdscr):
   global HardwareModel
   global MacAddress
   global DeviceID
-  global BatteryLevel
   global PauseOutput
   global HardwareModel
   global PriorityOutput
@@ -1420,7 +1462,6 @@ def main(stdscr):
     MacAddress      = ''
     DeviceName      = ''
     DeviceID        = ''
-    BatteryLevel    = -1
     PauseOutput     = False
     HardwareModel   = '??'
     PriorityOutput  = False,
