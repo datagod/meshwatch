@@ -11,6 +11,8 @@ I built this project with the goal of learning about the Meshtastic API and to g
 
 My progress can be followed here:  https://datagod.hashnode.dev/series/meshtalk-development
 
+Shameless Plug: https://hashnode.com/@datagod/joinme
+
 
 # Built with Curses
 This project uses Curses to draw text windows and pads to keep the different types of information separated.  You can use a screen directly connected to the pi or use an SSH session.  I have used Kitty in my tests.  If you Kitty screen is not large enough you will recieve strange display errors.
