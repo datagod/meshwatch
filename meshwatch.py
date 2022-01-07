@@ -45,6 +45,7 @@
 
 #Final Version
 import meshtastic
+import meshtastic.serial_interface
 import time
 from datetime import datetime
 import traceback
@@ -1478,7 +1479,7 @@ def main(stdscr):
     #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
     Window4.ScrollPrint("Finding Meshtastic device",2)
     
-    interface = meshtastic.SerialInterface()
+    interface = meshtastic.serial_interface.SerialInterface()
 
 
 
