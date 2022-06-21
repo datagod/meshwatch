@@ -46,6 +46,7 @@
 #Final Version
 import meshtastic
 import meshtastic.serial_interface
+import meshtastic.tcp_interface
 import time
 from datetime import datetime
 import traceback
@@ -90,6 +91,9 @@ DEBUG = False
 parser = argparse.ArgumentParser(description=DESCRIPTION)
 parser.add_argument('-s', '--send',    type=str,   nargs='?', help="send a text message")
 parser.add_argument('-t', '--time',    type=int, nargs='?', help="seconds to listen before exiting",default = 36000)
+ifparser = parser.add_mutually_exclusive_group(required=False)
+ifparser.add_argument('-p', '--port', type=str, help="port the Meshtastic device is connected to (e.g., /dev/ttyUSB0)")
+ifparser.add_argument('-i', '--host', type=str, help="hostname/ipaddr of the device to connect to over TCP")
 args = parser.parse_args()
 
 #This will now be the default behaviour
@@ -1477,9 +1481,15 @@ def main(stdscr):
     
     #Instanciate a meshtastic object
     #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
-    Window4.ScrollPrint("Finding Meshtastic device",2)
-    
-    interface = meshtastic.serial_interface.SerialInterface()
+    if (args.host):
+      Window4.ScrollPrint("Connecting to device on host {}".format(args.host),2)
+      interface = meshtastic.tcp_interface.TCPInterface(args.host)
+    elif (args.port):
+      Window4.ScrollPrint("Connecting to device at port {}".format(args.port),2)
+      interface = meshtastic.serial_interface.SerialInterface(args.port)
+    else:
+      Window4.ScrollPrint("Finding Meshtastic device",2)
+      interface = meshtastic.serial_interface.SerialInterface()
 
 
 
