@@ -89,8 +89,8 @@ DESCRIPTION = "Send and recieve messages to a MeshTastic device"
 DEBUG = False
 
 parser = argparse.ArgumentParser(description=DESCRIPTION)
-parser.add_argument('-s', '--send',    type=str,   nargs='?', help="send a text message")
-parser.add_argument('-t', '--time',    type=int, nargs='?', help="seconds to listen before exiting",default = 36000)
+parser.add_argument('-s', '--send', type=str, help="send a text message")
+parser.add_argument('-t', '--time', type=int, help="seconds to listen before exiting", default = 36000)
 ifparser = parser.add_mutually_exclusive_group(required=False)
 ifparser.add_argument('-p', '--port', type=str, help="port the Meshtastic device is connected to (e.g., /dev/ttyUSB0)")
 ifparser.add_argument('-i', '--host', type=str, help="hostname/ipaddr of the device to connect to over TCP")
