@@ -1476,6 +1476,12 @@ def main(stdscr):
     BaseLat         = 0
     BaseLon         = 0
 
+    if (curses.LINES < 57 or curses.COLS < 190):
+      ErrorMessage = "Display area too small. Increase window size or reduce font size."
+      TraceMessage = traceback.format_stack()[0]
+      AdditionalInfo = "57 lines and 190 columns required. Found {} lines and {} columns.".format(curses.LINES, curses.COLS)
+      ErrorHandler(ErrorMessage, TraceMessage, AdditionalInfo)
+
     
     CreateTextWindows()
     Window4.ScrollPrint("System initiated",2)
