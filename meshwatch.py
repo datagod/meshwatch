@@ -1365,14 +1365,17 @@ def DisplayLogs(ScrollSleep):
   PriorityOutput = True
   Window2.ScrollPrint("PriorityOutput: activated")
 
-  with open("/var/log/kern.log") as f:
-   
-    f = tail(f,50)
-    
-    for line in f:
-      Pad1.PadPrint(line,3)
-      time.sleep(ScrollSleep)
-      PollKeyboard()
+  try:
+    with open("/var/log/kern.log") as f:
+
+      f = tail(f,50)
+
+      for line in f:
+        Pad1.PadPrint(line,3)
+        time.sleep(ScrollSleep)
+        PollKeyboard()
+  except IOError:
+    Pad1.PadPrint("Could not open /var/log/kern.log.",3)
 
   PriorityOutput = False
   Window2.ScrollPrint("PriorityOutput: deactivated")
