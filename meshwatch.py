@@ -1,4 +1,4 @@
-
+#!/usr/bin/env python3
 
 #------------------------------------------------------------------------------
 #  __  __           _  __        __    _       _                             --
@@ -46,6 +46,7 @@
 #Final Version
 import meshtastic
 import meshtastic.serial_interface
+import meshtastic.tcp_interface
 import time
 from datetime import datetime
 import traceback
@@ -88,8 +89,11 @@ DESCRIPTION = "Send and recieve messages to a MeshTastic device"
 DEBUG = False
 
 parser = argparse.ArgumentParser(description=DESCRIPTION)
-parser.add_argument('-s', '--send',    type=str,   nargs='?', help="send a text message")
-parser.add_argument('-t', '--time',    type=int, nargs='?', help="seconds to listen before exiting",default = 36000)
+parser.add_argument('-s', '--send', type=str, help="send a text message")
+parser.add_argument('-t', '--time', type=int, help="seconds to listen before exiting", default = 36000)
+ifparser = parser.add_mutually_exclusive_group(required=False)
+ifparser.add_argument('-p', '--port', type=str, help="port the Meshtastic device is connected to (e.g., /dev/ttyUSB0)")
+ifparser.add_argument('-i', '--host', type=str, help="hostname/ipaddr of the device to connect to over TCP")
 args = parser.parse_args()
 
 #This will now be the default behaviour
@@ -1361,14 +1365,17 @@ def DisplayLogs(ScrollSleep):
   PriorityOutput = True
   Window2.ScrollPrint("PriorityOutput: activated")
 
-  with open("/var/log/kern.log") as f:
-   
-    f = tail(f,50)
-    
-    for line in f:
-      Pad1.PadPrint(line,3)
-      time.sleep(ScrollSleep)
-      PollKeyboard()
+  try:
+    with open("/var/log/kern.log") as f:
+
+      f = tail(f,50)
+
+      for line in f:
+        Pad1.PadPrint(line,3)
+        time.sleep(ScrollSleep)
+        PollKeyboard()
+  except IOError:
+    Pad1.PadPrint("Could not open /var/log/kern.log.",3)
 
   PriorityOutput = False
   Window2.ScrollPrint("PriorityOutput: deactivated")
@@ -1469,6 +1476,12 @@ def main(stdscr):
     BaseLat         = 0
     BaseLon         = 0
 
+    if (curses.LINES < 57 or curses.COLS < 190):
+      ErrorMessage = "Display area too small. Increase window size or reduce font size."
+      TraceMessage = traceback.format_stack()[0]
+      AdditionalInfo = "57 lines and 190 columns required. Found {} lines and {} columns.".format(curses.LINES, curses.COLS)
+      ErrorHandler(ErrorMessage, TraceMessage, AdditionalInfo)
+
     
     CreateTextWindows()
     Window4.ScrollPrint("System initiated",2)
@@ -1477,9 +1490,15 @@ def main(stdscr):
     
     #Instanciate a meshtastic object
     #By default will try to find a meshtastic device, otherwise provide a device path like /dev/ttyUSB0
-    Window4.ScrollPrint("Finding Meshtastic device",2)
-    
-    interface = meshtastic.serial_interface.SerialInterface()
+    if (args.host):
+      Window4.ScrollPrint("Connecting to device on host {}".format(args.host),2)
+      interface = meshtastic.tcp_interface.TCPInterface(args.host)
+    elif (args.port):
+      Window4.ScrollPrint("Connecting to device at port {}".format(args.port),2)
+      interface = meshtastic.serial_interface.SerialInterface(args.port)
+    else:
+      Window4.ScrollPrint("Finding Meshtastic device",2)
+      interface = meshtastic.serial_interface.SerialInterface()
 
 
 
