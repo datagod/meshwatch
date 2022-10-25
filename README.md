@@ -43,7 +43,7 @@ This is a curses text pad that scrolls upwards as new lines are entered.  In thi
 ## Help
 ![Help is here!](https://github.com/datagod/meshtalk/blob/main/pics/Meshtalk%20help%20window%20send%20message.jpg?raw=true "Help")
 
-This is a curses text pad that scrolls upwards as new lines are entered.  In this example I am displaying the connected nodes in the mesh.
+Shows usable key commands.
 
 ## Send Messages
 As per the help instructions, press S to send a message.  Press control+g when finished.
